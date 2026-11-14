@@ -693,12 +693,20 @@ function speechUI(w, { area, status, onResult, onBlocked }) {
   const listenMode = () => {
     const mic = h('button', { class: 'mic', type: 'button', 'aria-label': 'Tap and say the word' }, '🎤');
     area.replaceChildren(mic);
+    let handle = null; // set while the microphone is listening
+    const idle = () => { handle = null; mic.classList.remove('live'); mic.textContent = '🎤'; mic.setAttribute('aria-label', 'Tap and say the word'); };
     mic.onclick = async () => {
+      // a second tap while listening means "I'm done": stop and judge what was heard so far
+      if (handle) { status.textContent = 'Checking…'; handle.stop(); return; }
       unlockAudio(); // so the ding can play after the microphone has finished
-      stopAudio(); mic.classList.add('live'); status.textContent = 'Listening… say it now!';
+      stopAudio();
+      mic.classList.add('live'); mic.textContent = '■'; mic.setAttribute('aria-label', 'Stop listening');
+      status.textContent = 'Listening… say it now! Tap ■ when you’re done.';
+      // it finishes by itself as soon as what it hears is right, so it doesn't wait for Chrome to be sure she stopped
+      handle = listenOnce({ accept: (guesses) => judgeSpeech(guesses, w) === true });
       try {
-        const alts = await listenOnce();
-        mic.classList.remove('live');
+        const alts = await handle;
+        idle();
         const heard = alts[0] ? `I heard “${alts[0]}”. ` : '';
         const verdict = judgeSpeech(alts, w);
         if (verdict === true) { finish(true, { msg: `You said it! 🎉 ${heard}`.trim() }); return; }
@@ -722,7 +730,7 @@ function speechUI(w, { area, status, onResult, onBlocked }) {
           finish(false);
         }
       } catch (err) {
-        mic.classList.remove('live');
+        idle();
         if (err === 'denied') blocked();
         else { srBroken = true; recordMode(); }
       }

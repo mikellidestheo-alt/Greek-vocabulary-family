@@ -161,8 +161,15 @@ export const canListen = () => !!SR();
 
 // Listens once for a Greek word. Resolves with a list of guesses ([] if nothing was heard).
 // Rejects with 'denied' (microphone blocked) or 'unavailable' (recognition does not work here).
-export function listenOnce({ ms = 9000 } = {}) {
-  return new Promise((resolve, reject) => {
+//
+// Built to feel quick:
+//  - `accept(guesses)` is asked about every partial guess; if it says yes we are done at once, without waiting for
+//    Chrome to decide she has stopped talking (that is what makes it slow)
+//  - once the guesses stop changing for `settleMs`, we tell Chrome to wrap up
+//  - the returned promise has a `.stop()` for a "tap when done" button
+export function listenOnce({ ms = 9000, accept = null, settleMs = 1000 } = {}) {
+  let stopNow = () => {};
+  const promise = new Promise((resolve, reject) => {
     let r;
     try { r = new (SR())(); } catch { reject('unavailable'); return; }
     r.lang = 'el-GR';
@@ -170,21 +177,35 @@ export function listenOnce({ ms = 9000 } = {}) {
     // Partial guesses are kept too: Chrome sometimes gives up before its "final" answer, and for a short word the
     // right guess is often among the partial ones.
     r.interimResults = true;
-    let done = false;
+    let done = false, settle = null, force = null;
     const heard = new Set();
+    let latest = ''; // the newest, most complete guess: shown to her as "I heard ..."
     const finish = (err) => {
       if (done) return;
-      done = true; clearTimeout(timer);
+      done = true; clearTimeout(timer); clearTimeout(settle); clearTimeout(force);
       try { r.abort(); } catch { /* ignore */ }
-      if (err) reject(err); else resolve([...heard]);
+      if (err) reject(err); else resolve(latest ? [latest, ...[...heard].filter((x) => x !== latest)] : [...heard]);
     };
+    // ask the recogniser to wrap up now; if it is slow to answer, use what has been heard so far
+    const wrapUp = () => {
+      if (done) return;
+      clearTimeout(settle);
+      try { r.stop(); } catch { finish(); return; }
+      force = setTimeout(() => finish(), 1200);
+    };
+    stopNow = wrapUp;
     r.onresult = (e) => {
       let final = false;
       for (const res of e.results) {
         if (res.isFinal !== false) final = true; // (interim results have isFinal === false)
         for (let i = 0; i < res.length; i++) if (res[i].transcript.trim()) heard.add(res[i].transcript.trim());
       }
-      if (final) finish();
+      const lastRes = e.results[e.results.length - 1];
+      if (lastRes && lastRes[0] && lastRes[0].transcript.trim()) latest = lastRes[0].transcript.trim();
+      if (final) { finish(); return; }
+      if (accept && accept([...heard])) { finish(); return; } // already right: no need to wait
+      clearTimeout(settle);
+      if (heard.size) settle = setTimeout(wrapUp, settleMs);  // the guesses stopped changing
     };
     r.onerror = (e) => {
       if (e.error === 'not-allowed') finish('denied');
@@ -192,9 +213,11 @@ export function listenOnce({ ms = 9000 } = {}) {
       else finish();
     };
     r.onend = () => finish();
-    const timer = setTimeout(() => finish(), ms);
+    const timer = setTimeout(wrapUp, ms);
     try { r.start(); } catch { finish('unavailable'); }
   });
+  promise.stop = () => stopNow();
+  return promise;
 }
 
 const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ς/g, 'σ').replace(/[^\p{L}]/gu, '');

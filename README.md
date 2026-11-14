@@ -52,6 +52,11 @@ Partial guesses from Chrome count too, and a word can list `heardAs` in `js/word
 to write when it is said (it turns "μπαμπάς" into the film star "Μπαντέρας", so that is accepted for μπαμπάς and
 nothing else). If Chrome hears nothing at all on two tries, the question switches to record-and-compare so she
 is never stuck.
+
+**Speed.** Chrome only gives its final answer after a second or two of silence, so the app doesn't wait for it:
+every partial guess is checked as it arrives and she passes the moment it is right (usually under a second after
+she finishes), and if the guesses stop changing for a second the app tells Chrome to wrap up. While it listens the
+microphone button turns into a **stop (■) button**: tapping it means "I'm done" and gives the result almost at once.
 **A correct answer plays a bright happy ding** (never a "wrong" sound). Android and Chrome also play their own
 short beeps when listening starts and stops, which an app can't turn off. If recognition
 isn't available she records herself, hears herself next to the real word, and rates herself. If the
