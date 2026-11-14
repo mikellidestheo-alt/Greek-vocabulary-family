@@ -18,8 +18,10 @@ Plain HTML, CSS and JavaScript. There is nothing to install and no build step.
 - **Every relative is a monster**: fuzzy, tie-dye and two-tone fur, slit eyes and crooked teeth.
   **Every task shows the monster of the family member it is about**, beside the question. Where the picture
   would give the answer away (what a word means, which little word it takes, which relative a sentence is about,
-  anything she only hears) it starts as a grey mystery silhouette with a "?" and pops into full colour once she
-  has answered. On matching, each correct pair reveals its monster. The picture questions don't repeat a monster,
+  anything she only hears) it starts as one plain grey placeholder with a "?" on a neutral tile, and pops into
+  full colour once she has answered. The placeholder is exactly the same for every monster (the real drawing isn't
+  even rendered), so its shape, size, colours and whether it is one monster or two give nothing away. On matching,
+  each correct pair reveals its monster. The picture questions don't repeat a monster,
   because there the monsters are the question.
 - **3 lessons per unit**, getting harder as she learns, then a final "whole family mix".
 

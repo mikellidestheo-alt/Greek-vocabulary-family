@@ -245,13 +245,19 @@ select, .text { border: .15rem solid var(--line); background: #fbf8ff; border-ra
 .qhead { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .qmonster { flex: none; line-height: 0; }
 .qmonster .avatar { width: 5rem; height: 5rem; }
-/* mystery monsters: a dark silhouette with a "?", revealed in colour (with a little pop) after the answer */
-.avatar svg { transition: filter .5s, opacity .5s; }
-.qmonster.mystery .avatar svg, .avatar.mystery svg { filter: brightness(0) opacity(.3); }
-.qmonster.mystery .avatar, .avatar.mystery { position: relative; }
+/* Mystery monsters. Every hidden monster looks EXACTLY the same: one generic grey shape and one neutral tile colour,
+   so nothing about the real monster (ears, size, colours, one or two of them) shows until she has answered.
+   The real drawing is hidden, not just darkened, and fades in with a little pop after the answer. */
+.avatar { position: relative; }
+.qmonster.mystery .avatar svg, .avatar.mystery svg { display: none; }
+.qmonster.mystery .avatar, .avatar.mystery { background: #e9defa !important; }
+.qmonster.mystery .avatar::before, .avatar.mystery::before { content: ''; position: absolute; inset: 0;
+  background: center / 100% 100% no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='%237a68a8' fill-opacity='.38'%3E%3Cellipse cx='37' cy='89' rx='11' ry='7'/%3E%3Cellipse cx='63' cy='89' rx='11' ry='7'/%3E%3Cellipse cx='17' cy='71' rx='8' ry='13' transform='rotate(22 17 71)'/%3E%3Cellipse cx='83' cy='71' rx='8' ry='13' transform='rotate(-22 83 71)'/%3E%3Cpath d='M32 90Q20 90 20 79L20 46Q20 30 38 30L62 30Q80 30 80 46L80 79Q80 90 68 90Z'/%3E%3C/g%3E%3C/svg%3E"); }
 .qmonster.mystery .avatar::after, .avatar.mystery::after { content: '?'; position: absolute; inset: 0; display: grid; place-items: center;
   font-size: 2.4rem; font-weight: 900; color: #fff; text-shadow: 0 .1rem .35rem rgba(90, 50, 160, .7); }
 .match .avatar.mystery::after { font-size: 1.3rem; }
+.qmonster.reveal .avatar svg, .avatar.reveal svg { animation: fadein .45s ease-out; }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 .qmonster.reveal .avatar, .avatar.reveal { animation: pop .55s ease-out; }
 @keyframes pop { 0% { transform: scale(.65) rotate(-6deg); } 60% { transform: scale(1.15) rotate(3deg); } 100% { transform: scale(1) rotate(0); } }
 .match .opt .avatar { flex: none; }
