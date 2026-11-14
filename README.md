@@ -26,7 +26,7 @@ Progress for each skill is shown on the **Me** page.
 | Skill | Activities |
 | --- | --- |
 | 🌍 **Translate** | Greek → English, English → Greek, picture questions, ο / η / το, male ↔ female partner, matching pairs |
-| 🔤 **Spell** | build the word from letter tiles (from English or from sound), pick the correct spelling, find the missing letter |
+| 🔤 **Spell** | **writing whole words** on an on-screen Greek keyboard (with an accent key): from English, from sound, from a picture, as the missing word of a sentence, and finally with its little word (ο / η / το). Brand-new words start with the first letter given (plus tile-building and missing-letter warm-ups), then everything is written with no help |
 | 🗣️ **Say it** | hear it and tap the monster, pick the right pronunciation, which syllable is loudest, **say it out loud**. Every Say-it task ends with her saying the word, and Continue stays locked until she has |
 | 💬 **Sentences** | fill the missing word, translate a sentence, listen and understand, build a Greek sentence from word tiles |
 
@@ -40,6 +40,12 @@ Google to be recognised. She gets two tries, and the check ignores accents and s
 isn't available she records herself, hears herself next to the real word, and rates herself. If the
 microphone is blocked, the app carries on without it. Speaking never costs a heart. A grown-up can switch
 it off under Me → Sound, and then Say-it tasks are tap-only.
+
+**How writing is marked.** Accents count, but the check is fair: a final ς is fixed automatically,
+both spellings of words like αδερφός / αδελφός are accepted, and typing the little word as well is fine.
+Right letters with a missing or wrong accent, or a single letter out, count as "so close": no heart is lost,
+the correct spelling is shown, and the word comes back later. Anything else costs a heart. A physical
+keyboard with Greek letters also works.
 
 ### Rewards
 

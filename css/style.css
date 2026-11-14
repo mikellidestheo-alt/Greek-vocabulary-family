@@ -324,6 +324,27 @@ select, .text { border: .15rem solid var(--line); background: #fbf8ff; border-ra
 }
 @media (max-height: 40rem) { .mic { width: 5rem; height: 5rem; font-size: 2.2rem; } .bigword { font-size: 2.2rem; } }
 
+/* ---------- writing: answer box and Greek keyboard ---------- */
+.writebox { min-height: 4.6rem; border-bottom: .25rem dotted var(--edge); display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  font-size: 2.6rem; font-weight: 900; padding: .3rem 0; }
+.wch.given { color: var(--purple); }
+.wblank { opacity: .3; margin-left: .25rem; }
+.caret { width: .18rem; height: 2.4rem; background: var(--pink); border-radius: 1rem; margin: 0 .1rem; animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.writebox.locked .caret { display: none; }
+.writebox.right { color: #12875f; border-color: #5fdcb4; }
+.writebox.wrong { color: #c93a55; border-color: #ff8da0; animation: shake .35s; }
+.writebox.close { color: #b97800; border-color: #ffd36b; }
+.kbd { display: grid; gap: .45rem; margin-top: .4rem; }
+.krow { display: flex; justify-content: center; gap: .35rem; }
+.key { flex: 0 1 4.2rem; min-width: 2rem; height: 3.1rem; padding: 0; border: .15rem solid var(--line); border-radius: 1rem; background: #fff; box-shadow: 0 .24rem 0 var(--line); font-size: 1.5rem; font-weight: 800; }
+.key:active { transform: translateY(.18rem); box-shadow: 0 .05rem 0 var(--line); }
+.key.back { flex: 0 1 5.4rem; background: #ffe5ec; border-color: #ffc1cf; box-shadow: 0 .24rem 0 #ffc1cf; }
+.key.accent { flex: 0 1 8rem; font-size: 1.05rem; background: #fff1e0; border-color: #ffd199; box-shadow: 0 .24rem 0 #ffd199; }
+.key.space { flex: 1 1 14rem; max-width: 24rem; font-size: 1rem; color: var(--muted); }
+.fbn { font-size: 1rem; font-weight: 800; }
+@media (max-height: 48rem) { .key { height: 2.6rem; font-size: 1.35rem; } .writebox { min-height: 3.4rem; font-size: 2.1rem; } .caret { height: 1.9rem; } .kbd { gap: .35rem; } }
+
 .confetti { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
 .cheer { font-weight: 900; color: #16a283; font-size: 1.15rem; }
 .done h1 { font-size: 2.2rem; }

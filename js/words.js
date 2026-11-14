@@ -12,6 +12,8 @@
 //    pair  (optional) id of the male/female counterpart
 //    grp   (optional) words in the same group mean nearly the same thing,
 //          so they are never offered as wrong answers for each other
+//    alt   (optional) other correct spellings, accepted when she writes the word
+//          (e.g. αδελφός for αδερφός)
 //    poss  (optional) spelling when followed by μου, if the accent moves
 //          (ξάδερφος -> ξάδερφός μου)
 //    pic   what the little monster looks like (see avatars.js)
@@ -49,11 +51,11 @@ export const WORDS = [
     hint: 'Mum and dad together. Always plural!', pic: { figs: [MUM, DAD] }, picEx: true },
 
   // ---------------- Brothers & Sisters ----------------
-  { id: 'aderfos', el: 'αδερφός', art: 'ο', tr: 'a-ther-FOS', en: 'brother', pair: 'aderfi',
+  { id: 'aderfos', el: 'αδερφός', alt: ['αδελφός'], art: 'ο', tr: 'a-ther-FOS', en: 'brother', pair: 'aderfi',
     hint: 'The Greek δ sounds like “th” in “the”. Also written αδελφός.', pic: BOY },
-  { id: 'aderfi', el: 'αδερφή', art: 'η', tr: 'a-ther-FEE', en: 'sister', pair: 'aderfos',
+  { id: 'aderfi', el: 'αδερφή', alt: ['αδελφή'], art: 'η', tr: 'a-ther-FEE', en: 'sister', pair: 'aderfos',
     hint: 'Also written αδελφή.', pic: GIRL },
-  { id: 'aderfia', el: 'αδέρφια', art: 'τα', tr: 'a-THER-fia', en: 'brothers and sisters', plural: true,
+  { id: 'aderfia', el: 'αδέρφια', alt: ['αδέλφια'], art: 'τα', tr: 'a-THER-fia', en: 'brothers and sisters', plural: true,
     hint: 'Siblings, boys and girls together.', pic: { figs: [BOY, GIRL] } },
   { id: 'gios', el: 'γιος', art: 'ο', tr: 'YOS', en: 'son', pair: 'kori',
     hint: 'A short word with a long “o”: yos.', pic: { figs: [DAD, BOY] } },
@@ -83,11 +85,11 @@ export const WORDS = [
     hint: 'Your brother’s or sister’s daughter.', pic: { figs: [AUNT, GIRL] } },
 
   // ---------------- Cousins ----------------
-  { id: 'xaderfos', el: 'ξάδερφος', poss: 'ξάδερφός', art: 'ο', tr: 'KSA-ther-fos', en: 'male cousin', pair: 'xaderfi',
+  { id: 'xaderfos', el: 'ξάδερφος', alt: ['ξάδελφος'], poss: 'ξάδερφός', altPoss: ['ξάδελφός'], art: 'ο', tr: 'KSA-ther-fos', en: 'male cousin', pair: 'xaderfi',
     hint: 'Also written ξάδελφος. Starts with “ks”. Before μου the accent moves: ο ξάδερφός μου.', pic: BOY_CAP },
-  { id: 'xaderfi', el: 'ξαδέρφη', art: 'η', tr: 'ksa-THER-fi', en: 'female cousin', pair: 'xaderfos',
+  { id: 'xaderfi', el: 'ξαδέρφη', alt: ['ξαδέλφη'], art: 'η', tr: 'ksa-THER-fi', en: 'female cousin', pair: 'xaderfos',
     hint: 'Also written ξαδέλφη.', pic: GIRL_BAND },
-  { id: 'xaderfia', el: 'ξαδέρφια', art: 'τα', tr: 'ksa-THER-fia', en: 'cousins', plural: true,
+  { id: 'xaderfia', el: 'ξαδέρφια', alt: ['ξαδέλφια'], art: 'τα', tr: 'ksa-THER-fia', en: 'cousins', plural: true,
     hint: 'Cousins, boys and girls together.', pic: { figs: [BOY_CAP, GIRL_BAND] } },
 
   // ---------------- Great-grandparents ----------------

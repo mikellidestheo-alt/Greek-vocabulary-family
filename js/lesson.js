@@ -40,6 +40,8 @@ function distractors(w, n, { ok = () => true, preferUnit = true } = {}) {
   return [...sample(home, n), ...sample(rest, n)].slice(0, n);
 }
 const opt = (key, labelText, correct, extra = {}) => ({ key, label: labelText, correct, ...extra });
+// writing the word with its little word as well is always fine
+const altsWithArticle = (w) => [...(w.alt || []), ...(w.art ? [label(w), ...(w.alt || []).map((a) => `${w.art} ${a}`)] : [])];
 
 // ---------- spelling helpers ----------
 // Plausible misspellings: lost/moved accents, ι-η-υ and ο-ω mix-ups, ει/οι/αι, swapped or doubled letters.
@@ -173,6 +175,42 @@ const makers = {
     };
   },
 
+  // ===== spelling: writing whole words =====
+  // The first letter and the length are given (easiest way into writing).
+  'write-hint': (w) => ({
+    kind: 'write', title: 'Write this in Greek', prompt: w.en, promptClass: 'en', sub: 'the first letter is given', silent: true, say: w,
+    answer: w.el, alts: w.alt, scaffold: true,
+  }),
+  // English to a full written Greek word, no help.
+  'write-en': (w) => ({
+    kind: 'write', title: 'Write this in Greek', prompt: w.en, promptClass: 'en', silent: true, say: w,
+    answer: w.el, alts: altsWithArticle(w),
+  }),
+  // Hear it, write it.
+  'write-listen': (w) => ({
+    kind: 'write', title: 'Write the word you hear', listen: true, say: w,
+    answer: w.el, alts: altsWithArticle(w),
+  }),
+  // See the monster, write who it is.
+  'write-pic': (w) => ({
+    kind: 'write', title: 'Write who this is in Greek', pic: w, silent: true, say: w,
+    answer: w.el, alts: altsWithArticle(w),
+  }),
+  // Hardest: the word AND its little word (ο / η / το ...).
+  'write-full': (w) => ({
+    kind: 'write', title: 'Write it with its little word', prompt: w.en, promptClass: 'en', sub: 'ο, η or το first, then the word', silent: true, say: w,
+    answer: label(w), alts: (w.alt || []).map((a) => (w.art ? `${w.art} ${a}` : a)),
+  }),
+  // Write the missing word of a sentence.
+  'write-gap': (w) => {
+    const s = pickSentence(w);
+    const blanked = s.el.split(' ').map((t) => (strip(t) === s.form ? t.replace(s.form, '＿＿＿') : t)).join(' ');
+    return {
+      kind: 'write', title: 'Write the missing word', prompt: blanked, promptClass: 'sent', sub: s.en, silent: true, say: pseudo(s),
+      answer: s.form, alts: s.form === w.el ? w.alt : w.altPoss,
+    };
+  },
+
   // ===== pronunciation =====
   'listen-pic': (w) => ({
     kind: 'choice', title: 'Tap the monster you hear', listen: true, say: w, gridClass: 'pics', picOpts: true,
@@ -234,6 +272,7 @@ export const TYPE_SKILL = {
   'see-en': 'translation', 'listen-en': 'translation', 'en-el': 'translation', 'pic-el': 'translation',
   article: 'translation', counterpart: 'translation', match: 'translation',
   'build-en': 'spelling', 'build-listen': 'spelling', 'spell-pick': 'spelling', 'missing-letter': 'spelling',
+  'write-hint': 'spelling', 'write-en': 'spelling', 'write-listen': 'spelling', 'write-pic': 'spelling', 'write-full': 'spelling', 'write-gap': 'spelling',
   'listen-pic': 'pronunciation', 'say-tr': 'pronunciation', stress: 'pronunciation', speak: 'pronunciation',
   's-blank': 'sentences', 's-translate': 'sentences', 's-listen': 'sentences', 's-build': 'sentences',
 };
@@ -241,16 +280,21 @@ export const TYPE_SKILL = {
 // easy -> hard, by how well the word is known
 const TIERS = {
   translation: [['see-en', 'en-el', 'pic-el'], ['listen-en', 'en-el', 'counterpart', 'pic-el', 'article'], ['en-el', 'counterpart', 'article', 'listen-en']],
-  spelling: [['missing-letter', 'spell-pick'], ['spell-pick', 'build-en', 'missing-letter'], ['build-listen', 'build-en', 'spell-pick']],
+  // spelling is about WRITING: new words start with a hint, then full words with no help, then the little word too
+  spelling: [
+    ['write-hint', 'write-hint', 'write-hint', 'write-hint', 'build-en', 'missing-letter'],
+    ['write-en', 'write-listen', 'write-hint', 'write-gap', 'write-pic'],
+    ['write-full', 'write-gap', 'write-listen', 'write-en', 'write-pic'],
+  ],
   pronunciation: [['listen-pic', 'say-tr', 'stress'], ['say-tr', 'stress', 'speak', 'listen-pic'], ['speak', 'say-tr', 'stress']],
   sentences: [['s-blank', 's-translate'], ['s-translate', 's-blank', 's-build'], ['s-build', 's-listen', 's-blank']],
 };
 
 // questions per lesson, per skill (lesson 1 is gentle on sentences, lesson 3 leans on them)
 const QUOTAS = {
-  1: { translation: 4, spelling: 2, pronunciation: 3, sentences: 1 },
-  2: { translation: 3, spelling: 3, pronunciation: 2, sentences: 2 },
-  3: { translation: 2, spelling: 3, pronunciation: 2, sentences: 3 },
+  1: { translation: 3, spelling: 3, pronunciation: 3, sentences: 1 },
+  2: { translation: 2, spelling: 4, pronunciation: 2, sentences: 2 },
+  3: { translation: 2, spelling: 4, pronunciation: 1, sentences: 3 },
 };
 
 function eligible(type, w, caps) {
@@ -260,6 +304,10 @@ function eligible(type, w, caps) {
     case 'article': return ['ο', 'η', 'το'].includes(w.art);
     case 'build-en': case 'build-listen': return Array.from(w.el).length <= 14;
     case 'missing-letter': return Array.from(w.el).filter(isLetter).length >= 3;
+    case 'write-hint': case 'write-en': case 'write-listen': return !!w.art && Array.from(w.el).length >= 3 && Array.from(w.el).length <= 14;
+    case 'write-pic': return !!w.picEx;
+    case 'write-full': return !!w.art;
+    case 'write-gap': return sentencesFor(w.id).length > 0;
     case 'stress': return !!w.art && syllables(w.tr).length >= 2 && stressIndex(w.tr) >= 0;
     case 'speak': return !!caps.speak;
     case 's-blank': return sentencesFor(w.id).length > 0 && sameArtPool(w).length >= 3;
@@ -270,7 +318,8 @@ function eligible(type, w, caps) {
 
 function makeFor(skill, w, lessonNo, last, caps) {
   const s = Math.min(5, ws(w.id).s + (lessonNo - 1));
-  const tier = s <= 1 ? 0 : s <= 3 ? 1 : 2;
+  // writing moves up faster than the other skills: hints for brand-new words, then full words, then the little word too
+  const tier = skill === 'spelling' ? (s <= 0 ? 0 : s <= 2 ? 1 : 2) : (s <= 1 ? 0 : s <= 3 ? 1 : 2);
   let pool = TIERS[skill][tier].filter((t) => eligible(t, w, caps));
   if (!pool.length) pool = TIERS[skill].flat().filter((t) => eligible(t, w, caps));
   const fresh = pool.filter((t) => t !== last);

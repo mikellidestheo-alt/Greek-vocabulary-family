@@ -5,7 +5,7 @@ import {
 } from './store.js';
 import {
   initAudio, playWord, stopAudio, sfx, greekVoices, ttsSupported, hasRecording, hasFile,
-  canRecord, startRecording, stopRecording, saveRecording, deleteRecording, canListen, listenOnce, judgeSpeech,
+  canRecord, startRecording, stopRecording, saveRecording, deleteRecording, canListen, listenOnce, judgeSpeech, lev,
 } from './audio.js';
 import { buildLesson, introWords, SKILLS } from './lesson.js';
 
@@ -432,6 +432,32 @@ function nextQuestion() {
 
 function skipQuestion() { L.total = Math.max(1, L.total - 1); L.i++; nextQuestion(); }
 
+// ---- writing: an on-screen Greek keyboard ----
+// A tablet may not have a Greek keyboard installed, so the app brings its own (with an accent key).
+const KB_ROWS = [
+  ['ς', 'ε', 'ρ', 'τ', 'υ', 'θ', 'ι', 'ο', 'π'],
+  ['α', 'σ', 'δ', 'φ', 'γ', 'η', 'ξ', 'κ', 'λ'],
+  ['ζ', 'χ', 'ψ', 'ω', 'β', 'ν', 'μ'],
+];
+const ACCENT_ON = { α: 'ά', ε: 'έ', η: 'ή', ι: 'ί', ο: 'ό', υ: 'ύ', ω: 'ώ' };
+const ACCENT_OFF = Object.fromEntries(Object.entries(ACCENT_ON).map(([b, a]) => [a, b]));
+const GREEK_CHAR = /^[α-ωά-ώ]$/;
+// ς only at the end of a word, σ everywhere else, so she never has to think about it
+const fixSigma = (s) => s.replace(/ς/g, 'σ').replace(/σ(?=\s|$|[.,;?!])/g, 'ς');
+const bareLetters = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+const normWritten = (s) => fixSigma(s.normalize('NFC').toLowerCase().replace(/\s+/g, ' ').trim());
+
+function greekKeyboard({ onChar, onBack, onAccent }) {
+  const key = (ch, cls = '') => h('button', { type: 'button', class: `key ${cls}`, 'data-ch': ch, onclick: () => { sfx('tap'); onChar(ch); } }, ch);
+  return h('div', { class: 'kbd', role: 'group', 'aria-label': 'Greek keyboard' },
+    KB_ROWS.map((row, i) => h('div', { class: 'krow' },
+      row.map((c) => key(c)),
+      i === 2 ? h('button', { type: 'button', class: 'key back', 'aria-label': 'Delete', onclick: () => { sfx('tap'); onBack(); } }, '⌫') : null)),
+    h('div', { class: 'krow' },
+      h('button', { type: 'button', class: 'key accent', 'aria-label': 'Add or remove an accent on the last letter', onclick: () => { sfx('tap'); onAccent(); } }, '´ accent'),
+      h('button', { type: 'button', class: 'key space', 'aria-label': 'Space', 'data-ch': ' ', onclick: () => { sfx('tap'); onChar(' '); } }, 'space')));
+}
+
 const PROMPT_CLASS = { greek: 'bigword', en: 'bigword en', letters: 'bigword letters', sent: 'bigword sent', 'sent-en': 'bigword sent en' };
 
 function renderQuestion(q) {
@@ -519,6 +545,60 @@ function renderQuestion(q) {
       line.classList.add(ok ? 'right' : 'wrong');
       return { ok, answer: q.answer };
     };
+  } else if (q.kind === 'write') {
+    // ---- write the whole word on the on-screen Greek keyboard ----
+    const target = Array.from(q.answer);
+    const prefix = q.scaffold ? target[0] : '';
+    const limit = Math.max(12, target.length + 6);
+    let typed = '';
+    const box = h('div', { class: 'writebox', 'aria-live': 'polite', 'aria-label': 'Your answer', 'data-answer': DEBUG ? q.answer : null });
+    const draw = () => {
+      const shown = fixSigma(prefix + typed);
+      const blanks = q.scaffold ? Math.max(0, target.length - Array.from(shown).length) : 0;
+      box.replaceChildren(
+        ...Array.from(shown).map((ch, i) => h('span', { class: `wch ${i < prefix.length ? 'given' : ''}` }, ch === ' ' ? ' ' : ch)),
+        h('i', { class: 'caret' }),
+        ...Array.from({ length: blanks }, () => h('span', { class: 'wblank' }, '_')));
+      checkBtn.disabled = typed.length === 0;
+    };
+    const addChar = (ch) => {
+      if (locked) return;
+      if (ch === ' ' && (!typed || typed.endsWith(' '))) return;
+      if (Array.from(prefix + typed).length >= limit) return;
+      typed += ch; draw();
+    };
+    const backspace = () => { if (locked) return; typed = typed.slice(0, -1); draw(); };
+    const accent = () => {
+      if (locked || !typed) return;
+      const last = typed.slice(-1);
+      const swap = ACCENT_ON[last] || ACCENT_OFF[last];
+      if (swap) { typed = typed.slice(0, -1) + swap; draw(); }
+    };
+    draw();
+    body.append(box, greekKeyboard({ onChar: addChar, onBack: backspace, onAccent: accent }));
+    // a physical keyboard works too (Greek letters, Backspace)
+    wrap._type = (e) => {
+      if (locked || e.ctrlKey || e.metaKey || e.altKey) return false;
+      if (e.key === 'Backspace') { backspace(); return true; }
+      if (e.key === ' ') { addChar(' '); return true; }
+      if (e.key.length === 1 && GREEK_CHAR.test(e.key.toLowerCase())) { addChar(e.key.toLowerCase()); return true; }
+      return false;
+    };
+    getAnswer = () => {
+      const given = normWritten(prefix + typed);
+      const accepted = [q.answer, ...(q.alts || [])].map(normWritten);
+      box.classList.add('locked');
+      if (accepted.includes(given)) { box.classList.add('right'); return { ok: true, answer: q.answer }; }
+      // "close": the right letters with a missing or wrong accent, or exactly one letter different
+      const sameLetters = accepted.some((a) => bareLetters(a) === bareLetters(given));
+      const oneOff = !sameLetters && Array.from(given).length >= 5 && accepted.some((a) => lev(a, given) <= 1);
+      if (sameLetters || oneOff) {
+        box.classList.add('close');
+        return { ok: false, close: true, answer: q.answer, note: sameLetters ? 'Right letters. Check the accent!' : 'So close! One letter is different.' };
+      }
+      box.classList.add('wrong');
+      return { ok: false, answer: q.answer, note: `You wrote: ${given}` };
+    };
   } else if (q.kind === 'match') {
     renderMatch(q, body, foot, fb);
     return;
@@ -527,10 +607,16 @@ function renderQuestion(q) {
   const finish = () => {
     if (locked) return;
     locked = true;
-    const { ok, answer } = getAnswer();
-    recordResult(q, ok);
-    showFeedback(fb, foot, ok, answer, q);
-    if (ok && q.needsSpeak) addSpeechConfirm(q, foot);
+    const r = getAnswer();
+    if (r.close) {
+      // nearly right: no heart lost, but she writes it again later
+      recordClose(q);
+      showFeedback(fb, foot, false, r.answer, q, { soft: true, requeue: true, prefix: 'Correct spelling: ', note: r.note, msg: ['Σχεδόν!', 'So close!'] });
+      return;
+    }
+    recordResult(q, r.ok);
+    showFeedback(fb, foot, r.ok, r.answer, q, { note: r.note, msg: !r.ok && q.kind === 'write' ? ['Όχι ακριβώς!', 'Not quite!'] : null });
+    if (r.ok && q.needsSpeak) addSpeechConfirm(q, foot);
   };
   checkBtn.addEventListener('click', finish);
   if ((q.listen || q.autoplay) && w) setTimeout(() => playWord(w), 250);
@@ -749,18 +835,29 @@ function recordSpeak(q, ok) {
   save();
 }
 
-function showFeedback(fb, foot, ok, answer, q, { skipRecord = false, soft = false } = {}) {
-  const [elTxt, enTxt] = ok ? pick(PRAISE) : soft ? pick(SOFT) : pick(OOPS);
+// nearly right (a writing answer with a slip): no heart, no strength change, but the question comes back
+function recordClose(q) {
+  const first = !L.attempted.has(q.id);
+  L.attempted.add(q.id);
+  const s = ws(q.wid);
+  L.touched.add(q.wid);
+  if (first) { bumpSkill(q.skill, false); s.seen++; }
+  save();
+}
+
+function showFeedback(fb, foot, ok, answer, q, { skipRecord = false, soft = false, requeue = false, note = '', prefix = '', msg = null } = {}) {
+  const [elTxt, enTxt] = msg || (ok ? pick(PRAISE) : soft ? pick(SOFT) : pick(OOPS));
   const showWord = q.sayAfter || q.say || word(q.wid);
   fb.className = `fb show ${ok ? 'good' : soft ? 'soft' : 'bad'}`;
   fb.replaceChildren(
     mascot('sm', ok || soft ? 'happy' : 'sad'),
     h('div', {},
       h('div', { class: 'fbt' }, `${elTxt} `, h('span', { class: 'fbe' }, enTxt)),
-      !ok && answer ? h('div', { class: 'fba' }, soft ? 'Say it with me: ' : 'Correct answer: ', h('b', {}, answer)) : null,
+      !ok && answer ? h('div', { class: 'fba' }, prefix || (soft ? 'Say it with me: ' : 'Correct answer: '), h('b', {}, answer)) : null,
+      note ? h('div', { class: 'fbn' }, note) : null,
       q.kind !== 'match' && showWord ? h('div', { class: 'fbw' }, `${label(showWord)} · ${showWord.tr}`) : null),
     q.kind !== 'match' && showWord ? speakerBtn(showWord) : null);
-  if (!ok && !soft && !skipRecord && (L.requeued.get(q.id) || 0) < 2) {
+  if (!ok && (!soft || requeue) && !skipRecord && (L.requeued.get(q.id) || 0) < 2) {
     L.requeued.set(q.id, (L.requeued.get(q.id) || 0) + 1);
     L.queue.push(q); L.total++;
   }
@@ -775,6 +872,7 @@ function showFeedback(fb, foot, ok, answer, q, { skipRecord = false, soft = fals
 function onKey(e) {
   if (lessonEl.hidden || !L) return;
   const wrap = lessonEl.querySelector('.lwrap');
+  if (wrap && wrap._type && wrap._type(e)) { e.preventDefault(); return; }
   if (e.key === 'Enter') {
     const go = lessonEl.querySelector('.lfoot > .btn:not([disabled]):not(.ghost)');
     if (go && document.activeElement !== go) { go.click(); e.preventDefault(); }
