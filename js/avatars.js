@@ -100,13 +100,19 @@ function face(spec, sh, rnd, opts = {}) {
   const mx0 = thin ? 36 : 33, mx1 = thin ? 64 : 67;
   const sad = opts.mood === 'sad';
   const eye = (x, y, r, i) => {
-    const px = (rnd() - 0.5) * r * 0.6, py = sad ? -r * 0.35 : (rnd() - 0.2) * r * 0.45;
-    return `<circle cx="${x}" cy="${y}" r="${r}" fill="#fff" stroke="#3a2150" stroke-width="1.6"/>
+    // big glossy coloured eye with a horizontal slit pupil and a heavy, sleepy upper lid
+    const px = (rnd() - 0.5) * r * 0.35, py = sad ? -r * 0.3 : (rnd() - 0.5) * r * 0.2;
+    const cx = (x + px).toFixed(1), cy = (y + py + r * 0.12).toFixed(1);
+    const lidY = y - r * (sad ? 0.2 : 0.46);
+    const lidW = Math.sqrt(r * r - (y - lidY) * (y - lidY));
+    const lidFill = spec.fur === 'tie' ? (spec.c2 || '#ec4fa0') : spec.fur === 'split' && x > 50 ? spec.c2 : spec.c;
+    const lid = `<path d="M${(x - lidW).toFixed(1)} ${lidY.toFixed(1)} A${r} ${r} 0 0 1 ${(x + lidW).toFixed(1)} ${lidY.toFixed(1)}Z" fill="${lidFill}" stroke="#3a2150" stroke-width="1.6" stroke-linejoin="round"/>`;
+    return `<circle cx="${x}" cy="${y}" r="${r}" fill="${ec}" stroke="#3a2150" stroke-width="1.6"/>
+      <circle cx="${x}" cy="${(y + r * 0.1).toFixed(1)}" r="${(r * 0.74).toFixed(1)}" fill="${light(ec, 0.45)}" opacity=".55"/>
       <g class="pupil" style="animation-delay:-${(i * 1.7 + rnd() * 2).toFixed(1)}s">
-        <circle cx="${(x + px).toFixed(1)}" cy="${(y + py).toFixed(1)}" r="${(r * 0.62).toFixed(1)}" fill="${ec}"/>
-        <circle cx="${(x + px).toFixed(1)}" cy="${(y + py).toFixed(1)}" r="${(r * 0.36).toFixed(1)}" fill="#1f1030"/>
-        <circle cx="${(x + px - r * 0.18).toFixed(1)}" cy="${(y + py - r * 0.2).toFixed(1)}" r="${(r * 0.14).toFixed(1)}" fill="#fff"/>
-      </g>`;
+        <ellipse cx="${cx}" cy="${cy}" rx="${(r * 0.78).toFixed(1)}" ry="${(r * 0.26).toFixed(1)}" fill="#140a22"/>
+        <circle cx="${(x - r * 0.38).toFixed(1)}" cy="${(y - r * 0.05).toFixed(1)}" r="${(r * 0.14).toFixed(1)}" fill="#fff" opacity=".95"/>
+      </g>${lid}`;
   };
   let s = '';
   s += eye(lx, ey, lr, 0) + eye(rx2, ey - 2, rr, 1);
