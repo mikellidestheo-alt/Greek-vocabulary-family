@@ -28,53 +28,92 @@ const dark = (c, t = 0.28) => mix(c, '#2a1740', t);
 const light = (c, t = 0.4) => mix(c, '#ffffff', t);
 
 const SHAPES = {
-  blob: { cx: 50, cy: 60, rx: 30, ry: 29 },
-  cat: { cx: 50, cy: 60, rx: 30, ry: 29 },
-  bunny: { cx: 50, cy: 62, rx: 27, ry: 30 },
-  horn: { cx: 50, cy: 60, rx: 30, ry: 29 },
-  tall: { cx: 50, cy: 58, rx: 25, ry: 33 },
+  blob: { cx: 50, cy: 60, rx: 30, ry: 30 },
+  cat: { cx: 50, cy: 60, rx: 30, ry: 30 },
+  bunny: { cx: 50, cy: 60, rx: 26, ry: 30 },
+  horn: { cx: 50, cy: 60, rx: 30, ry: 30 },
+  tall: { cx: 50, cy: 57, rx: 25, ry: 33 },
   round: { cx: 50, cy: 64, rx: 33, ry: 26 },
 };
 
-function bodyPath(sh, fuzzy, rnd) {
-  const { cx, cy, rx, ry } = sh;
-  if (!fuzzy) return `M${cx - rx} ${cy}A${rx} ${ry} 0 1 1 ${cx + rx} ${cy}A${rx} ${ry} 0 1 1 ${cx - rx} ${cy}Z`;
-  const N = 48;
-  let d = '';
-  for (let i = 0; i < N; i++) {
-    const a = (i / N) * Math.PI * 2;
-    const k = i % 2 === 0 ? 1.07 + rnd() * 0.08 : 0.97;
-    d += `${i ? 'L' : 'M'}${(cx + rx * k * Math.cos(a)).toFixed(1)} ${(cy + ry * k * Math.sin(a)).toFixed(1)}`;
-  }
-  return d + 'Z';
+// A chunky plush "bean": straight sides and big rounded corners, like the reference toys.
+function beanD(sh, rt, rb) {
+  const x0 = sh.cx - sh.rx, x1 = sh.cx + sh.rx, y0 = sh.cy - sh.ry, y1 = sh.cy + sh.ry;
+  return `M${x0 + rb} ${y1}Q${x0} ${y1} ${x0} ${y1 - rb}L${x0} ${y0 + rt}Q${x0} ${y0} ${x0 + rt} ${y0}L${x1 - rt} ${y0}Q${x1} ${y0} ${x1} ${y0 + rt}L${x1} ${y1 - rb}Q${x1} ${y1} ${x1 - rb} ${y1}Z`;
+}
+// Cats: the head and its two small, round-tipped ears are ONE outline.
+const CAT_D = 'M32 90Q20 90 20 79L20 46Q20 34 23 26Q25 19 31 21Q38 24 42 30Q50 28 58 30Q62 24 69 21Q75 19 77 26Q80 34 80 46L80 79Q80 90 68 90Z';
+
+function bodyD(spec) {
+  const sh = SHAPES[spec.shape] || SHAPES.blob;
+  if (spec.shape === 'cat') return CAT_D;
+  if (spec.shape === 'round') return beanD(sh, 15, 12);
+  if (spec.shape === 'tall') return beanD(sh, 15, 8);
+  return beanD(sh, 17, 11);
 }
 
-function ears(spec, sh) {
-  const c = spec.c, edge = dark(c, 0.3), inner = light(c, 0.55);
+// A spiky "fur" outline that follows any shape: sample the smooth path, push every other point outwards.
+let measurer = null;
+function furD(d, rnd) {
+  if (typeof document === 'undefined') return d;
+  if (!measurer || !measurer.isConnected) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '0');
+    svg.setAttribute('height', '0');
+    svg.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none';
+    measurer = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    svg.append(measurer);
+    document.body.append(svg);
+  }
+  measurer.setAttribute('d', d);
+  const len = measurer.getTotalLength();
+  const N = 84;
+  const pts = [];
+  for (let i = 0; i < N; i++) { const p = measurer.getPointAtLength((len * i) / N); pts.push([p.x, p.y]); }
+  const mx = pts.reduce((a, p) => a + p[0], 0) / N;
+  const my = pts.reduce((a, p) => a + p[1], 0) / N;
+  let out = '';
+  pts.forEach((p, i) => {
+    const a = pts[(i + N - 1) % N], b = pts[(i + 1) % N];
+    let nx = b[1] - a[1], ny = a[0] - b[0];
+    const l = Math.hypot(nx, ny) || 1;
+    nx /= l; ny /= l;
+    if ((p[0] - mx) * nx + (p[1] - my) * ny < 0) { nx = -nx; ny = -ny; }
+    const amp = i % 2 === 0 ? 2 + rnd() * 2.4 : -0.4;
+    out += `${i ? 'L' : 'M'}${(p[0] + nx * amp).toFixed(1)} ${(p[1] + ny * amp).toFixed(1)}`;
+  });
+  return out + 'Z';
+}
+
+// Extra ears that are drawn together with the body (so there is no line where they join).
+function earParts(spec, sh) {
   const top = sh.cy - sh.ry;
-  switch (spec.shape) {
-    case 'cat':
-      { // wide, flared, soft-tipped cat ears that grow out of the corners of the head (no inner patch)
-        const ec = spec.fur === 'tie' ? (spec.c3 || '#3fc98a') : c;
-        return `<path d="M24 ${top + 18} Q12 ${top - 2} 14 ${top - 13} Q15 ${top - 17} 20 ${top - 15} Q36 ${top - 8} 48 ${top + 4}Z" fill="${ec}" stroke="${edge}" stroke-width="1.5" stroke-linejoin="round"/>
-        <path d="M76 ${top + 18} Q88 ${top - 2} 86 ${top - 13} Q85 ${top - 17} 80 ${top - 15} Q64 ${top - 8} 52 ${top + 4}Z" fill="${ec}" stroke="${edge}" stroke-width="1.5" stroke-linejoin="round"/>`;
-      }
-    case 'bunny':
-      return `<ellipse cx="37" cy="${top - 6}" rx="7.5" ry="19" transform="rotate(-10 37 ${top - 6})" fill="${c}" stroke="${edge}" stroke-width="1.5"/>
-        <ellipse cx="63" cy="${top - 6}" rx="7.5" ry="19" transform="rotate(10 63 ${top - 6})" fill="${c}" stroke="${edge}" stroke-width="1.5"/>
-        <ellipse cx="37" cy="${top - 5}" rx="3.5" ry="13" transform="rotate(-10 37 ${top - 5})" fill="${inner}"/>
-        <ellipse cx="63" cy="${top - 5}" rx="3.5" ry="13" transform="rotate(10 63 ${top - 5})" fill="${inner}"/>`;
-    case 'horn':
-      return `<path d="M27 ${top + 10} L21 ${top - 10} L42 ${top + 2}Z M73 ${top + 10} L79 ${top - 10} L58 ${top + 2}Z" fill="#ffe08a" stroke="#c99a1f" stroke-width="1.5" stroke-linejoin="round"/>`;
-    default:
-      return '';
+  if (spec.shape === 'bunny') {
+    return [
+      (st) => `<ellipse cx="38" cy="${top - 5}" rx="7" ry="17" transform="rotate(-9 38 ${top - 5})" ${st}/>`,
+      (st) => `<ellipse cx="62" cy="${top - 5}" rx="7" ry="17" transform="rotate(9 62 ${top - 5})" ${st}/>`,
+    ];
   }
+  return [];
 }
 
+function innerEars(spec, sh) {
+  if (spec.shape !== 'bunny') return '';
+  const top = sh.cy - sh.ry, inner = light(spec.c, 0.55);
+  return `<ellipse cx="38" cy="${top - 4}" rx="3.2" ry="11.5" transform="rotate(-9 38 ${top - 4})" fill="${inner}"/><ellipse cx="62" cy="${top - 4}" rx="3.2" ry="11.5" transform="rotate(9 62 ${top - 4})" fill="${inner}"/>`;
+}
+
+function horns(spec, sh) {
+  if (spec.shape !== 'horn') return '';
+  const top = sh.cy - sh.ry;
+  return `<path d="M27 ${top + 10} L21 ${top - 10} L42 ${top + 2}Z M73 ${top + 10} L79 ${top - 10} L58 ${top + 2}Z" fill="#ffe08a" stroke="#c99a1f" stroke-width="1.5" stroke-linejoin="round"/>`;
+}
+
+// Tie-dye: a green head and ears, a pink band under the eyes, then green, blue and pink again.
 function tieBands(spec) {
   const w = (y) => `M-5 ${y} Q15 ${y - 11} 35 ${y} T75 ${y} T115 ${y} V110 H-5Z`;
   const c2 = spec.c2 || '#ec4fa0', c3 = spec.c3 || '#3fc98a';
-  return `<path d="${w(40)}" fill="${c2}"/><path d="${w(54)}" fill="${c3}"/><path d="${w(68)}" fill="${spec.c}"/><path d="${w(81)}" fill="${c2}"/>`;
+  return `<path d="${w(15)}" fill="${c3}"/><path d="${w(40)}" fill="${c2}"/><path d="${w(54)}" fill="${c3}"/><path d="${w(68)}" fill="${spec.c}"/><path d="${w(81)}" fill="${c2}"/>`;
 }
 
 function teethSvg(kind, my, mx0, mx1, lower = true) {
@@ -185,26 +224,32 @@ function monster(spec, opts = {}) {
   const rnd = mulberry(fnv(JSON.stringify(spec)) + (opts.seed || 0));
   const sh = SHAPES[spec.shape] || SHAPES.blob;
   const c = spec.c;
-  const edge = dark(c, 0.3);
-  const smooth = bodyPath(sh, false, rnd);
-  const furry = bodyPath(sh, true, rnd);
+  const fuzzy = spec.fur === 'fuzzy';
+  const edge = dark(c, fuzzy ? 0.22 : 0.3);
+  const smoothD = bodyD(spec);
+  const furryD = fuzzy || spec.fur === 'split' ? furD(smoothD, rnd) : smoothD;
+  const ears = earParts(spec, sh);
+  const parts = [(st) => `<path d="${fuzzy ? furryD : smoothD}" ${st}/>`, ...ears];
   const limb = spec.fur === 'split' ? spec.c2 : c;
+  const limbStyle = `stroke="${edge}" stroke-width="2.4"`;
   let s = '';
   // legs & arms sit behind the body
-  s += `<ellipse cx="${sh.cx - 13}" cy="${sh.cy + sh.ry}" rx="11" ry="7.5" fill="${dark(limb, 0.1)}" stroke="${edge}" stroke-width="1.4"/><ellipse cx="${sh.cx + 13}" cy="${sh.cy + sh.ry}" rx="11" ry="7.5" fill="${dark(limb, 0.1)}" stroke="${edge}" stroke-width="1.4"/>`;
-  s += `<ellipse cx="${sh.cx - sh.rx - 2}" cy="${sh.cy + 11}" rx="8" ry="13" transform="rotate(22 ${sh.cx - sh.rx - 2} ${sh.cy + 11})" fill="${c}" stroke="${edge}" stroke-width="1.4"/><ellipse cx="${sh.cx + sh.rx + 2}" cy="${sh.cy + 11}" rx="8" ry="13" transform="rotate(-22 ${sh.cx + sh.rx + 2} ${sh.cy + 11})" fill="${limb}" stroke="${edge}" stroke-width="1.4"/>`;
+  s += `<ellipse cx="${sh.cx - 13}" cy="${sh.cy + sh.ry - 1.5}" rx="11" ry="7.5" fill="${dark(limb, 0.1)}" ${limbStyle}/><ellipse cx="${sh.cx + 13}" cy="${sh.cy + sh.ry - 1.5}" rx="11" ry="7.5" fill="${dark(limb, 0.1)}" ${limbStyle}/>`;
+  s += `<ellipse cx="${sh.cx - sh.rx - 2}" cy="${sh.cy + 11}" rx="8" ry="13" transform="rotate(22 ${sh.cx - sh.rx - 2} ${sh.cy + 11})" fill="${c}" ${limbStyle}/><ellipse cx="${sh.cx + sh.rx + 2}" cy="${sh.cy + 11}" rx="8" ry="13" transform="rotate(-22 ${sh.cx + sh.rx + 2} ${sh.cy + 11})" fill="${limb}" ${limbStyle}/>`;
   if ((spec.acc || []).includes('cane')) s += `<path d="M90 ${sh.cy + 4} L91 98" stroke="#8a5a35" stroke-width="4.2" stroke-linecap="round"/><path d="M83 ${sh.cy + 4} Q90 ${sh.cy - 6} 95 ${sh.cy + 4}" fill="none" stroke="#8a5a35" stroke-width="4.2" stroke-linecap="round"/>`;
-  s += ears(spec, sh);
+  s += horns(spec, sh);
 
+  // 1) one outline around the body and its ears together...
+  const ow = fuzzy ? 2.4 : 3.2;
+  s += parts.map((f) => f(`fill="${edge}" stroke="${edge}" stroke-width="${ow}" stroke-linejoin="round"`)).join('');
+  // 2) ...then one fill on top, so there is no line where an ear joins the head
+  s += parts.map((f) => f(`fill="${c}"`)).join('');
   if (spec.fur === 'tie') {
-    s += `<clipPath id="t${id}"><path d="${smooth}"/></clipPath><path d="${smooth}" fill="${c}"/><g clip-path="url(#t${id})">${tieBands(spec)}</g><path d="${smooth}" fill="none" stroke="${edge}" stroke-width="1.6"/>`;
+    s += `<clipPath id="t${id}">${parts.map((f) => f('')).join('')}</clipPath><g clip-path="url(#t${id})">${tieBands(spec)}</g>`;
   } else if (spec.fur === 'split') {
-    s += `<path d="${smooth}" fill="${c}" stroke="${edge}" stroke-width="1.6"/><clipPath id="r${id}"><rect x="50" y="0" width="60" height="110"/></clipPath><g clip-path="url(#r${id})"><path d="${furry}" fill="${spec.c2}" stroke="${spec.c2}" stroke-width="2" stroke-linejoin="round"/></g><path d="M50 ${sh.cy - sh.ry} V${sh.cy + sh.ry}" stroke="${dark(spec.c2, 0.4)}" stroke-width="1.6" stroke-dasharray="3 2.4"/>`;
-  } else if (spec.fur === 'fuzzy') {
-    s += `<path d="${furry}" fill="${c}" stroke="${c}" stroke-width="2" stroke-linejoin="round"/><path d="${furry}" fill="none" stroke="${edge}" stroke-width=".7" stroke-linejoin="round" opacity=".55"/>`;
-  } else {
-    s += `<path d="${smooth}" fill="${c}" stroke="${edge}" stroke-width="1.6"/>`;
+    s += `<clipPath id="r${id}"><rect x="50" y="0" width="60" height="110"/></clipPath><g clip-path="url(#r${id})"><path d="${furryD}" fill="${spec.c2}" stroke="${spec.c2}" stroke-width="2" stroke-linejoin="round"/>${ears.map((f) => f(`fill="${spec.c2}"`)).join('')}</g><path d="M50 ${sh.cy - sh.ry} V${sh.cy + sh.ry}" stroke="${dark(spec.c2, 0.4)}" stroke-width="1.6" stroke-dasharray="3 2.4"/>`;
   }
+  s += innerEars(spec, sh);
   s += `<ellipse cx="${sh.cx}" cy="${sh.cy + sh.ry * 0.55}" rx="${sh.rx * 0.5}" ry="${sh.ry * 0.32}" fill="#fff" opacity=".16"/>`;
 
   const f = face(spec, sh, rnd, opts);
