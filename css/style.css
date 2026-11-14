@@ -361,6 +361,25 @@ select, .text { border: .15rem solid var(--line); background: #fbf8ff; border-ra
 }
 @media (max-height: 40rem) { .mic { width: 5rem; height: 5rem; font-size: 2.2rem; } .bigword { font-size: 2.2rem; } }
 
+/* ---------- writing with a stylus or finger ---------- */
+.modeswitch { display: flex; justify-content: center; gap: .3rem; margin: 0 auto .6rem; padding: .25rem; background: #f1e9ff; border-radius: 999px; width: fit-content; }
+.seg { border: 0; background: transparent; border-radius: 999px; padding: .45rem 1.1rem; font-weight: 900; color: #7a55e8; font-size: 1rem; }
+.seg.on { background: #fff; box-shadow: 0 .15rem 0 var(--line); color: var(--purple); }
+.typeview[hidden], .padview[hidden] { display: none; }
+.padhint { text-align: center; font-weight: 800; color: #7a55e8; margin: 0 0 .3rem; font-size: .95rem; }
+.pad { position: relative; height: clamp(8.5rem, 27vh, 17rem); background: #fff; border: .2rem solid var(--edge); border-radius: 1.4rem; overflow: hidden;
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.pad canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+.pad.right { border-color: #5fdcb4; background: #f1fffa; }
+.pad.close { border-color: #ffd36b; background: #fffaf0; }
+.pad.locked { cursor: default; }
+.padtools[hidden], .padhint[hidden] { display: none; }
+.padtools { display: flex; justify-content: center; gap: .6rem; margin-top: .6rem; }
+.selfcheck { margin-top: .7rem; text-align: center; }
+.selfcheck p { font-weight: 800; margin: 0 0 .5rem; }
+.selfcheck .row { display: flex; gap: .7rem; justify-content: center; }
+.selfcheck .btn { width: auto; padding-left: 1.6rem; padding-right: 1.6rem; }
+
 /* ---------- writing: answer box and Greek keyboard ---------- */
 .writebox { min-height: 4.6rem; border-bottom: .25rem dotted var(--edge); display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
   font-size: 2.6rem; font-weight: 900; padding: .3rem 0; }

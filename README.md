@@ -70,6 +70,21 @@ the wrong little word ("η μπαμπάς") is wrong. Right letters with a missi
 letter out, also count as "so close": no heart is lost, the correct spelling is shown, and the word comes back
 later. Anything else costs a heart. A physical keyboard with Greek letters also works.
 
+**Writing with a stylus (or a finger).** Every spelling task has a **⌨️ Type / ✍️ Write** switch (the choice is
+remembered, and can also be set under Me → Spelling). Write mode is a handwriting pad that works with a
+Xiaomi stylus on Android and an Apple Pencil on iPad, because it uses the standard Pointer Events. Once a stylus is
+seen the pad ignores fingers, so a resting palm doesn't draw. There is Undo and Start again. How it is marked
+depends on what the device can do:
+
+- **Brand-new words** show the word as faint letters to **trace**; the app measures how well the pen followed them.
+- **If the browser can read Greek handwriting** (Chrome's Handwriting Recognition API, where a device offers it)
+  the writing is read and marked exactly like typing, little word included.
+- **Otherwise** (iPad Safari has no handwriting recognition, and most Android devices don't offer Greek) she compares
+  her writing with the correct letters, shown in green behind it, and taps **I got it** or **A bit different**.
+
+Handwriting never costs a heart: a miss counts as "so close" and the word comes back later.
+Me → Spelling says which of these a device can do.
+
 ### Rewards
 
 XP, a daily streak, a daily goal ring, 5 hearts per lesson, confetti, and a word-strength
@@ -131,6 +146,7 @@ Add `?debug` to the address to expose the answers in the page, which is handy fo
 | `js/words.js` | **the words, units, sentences and monster recipes** |
 | `js/lesson.js` | builds the questions for each lesson and skill |
 | `js/app.js` | screens and the lesson player |
+| `js/pad.js` | the handwriting pad: stylus / finger drawing, palm rejection, tracing score, handwriting recognition |
 | `js/audio.js` | recordings, mp3 files, text-to-speech, speech recognition, sound effects |
 | `js/avatars.js` | the monsters and the mascot, drawn as SVG |
 | `js/store.js` | saving progress, XP, streaks and skill stats |

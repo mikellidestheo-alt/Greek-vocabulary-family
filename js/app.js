@@ -8,6 +8,7 @@ import {
   canRecord, startRecording, stopRecording, saveRecording, deleteRecording, canListen, listenOnce, judgeSpeech, lev, unlockAudio,
 } from './audio.js';
 import { buildLesson, introWords, SKILLS } from './lesson.js';
+import { createPad, traceScore, recognize, handwritingMode } from './pad.js';
 
 // ---------- tiny helpers ----------
 const h = (tag, props = {}, ...kids) => {
@@ -277,6 +278,12 @@ function viewMe() {
         : h('p', { class: 'warn' }, 'This browser cannot speak out loud. Record voices below instead.'),
       h('a', { class: 'btn ghost', href: '#/record' }, '🎙 Record family voices')),
     h('section', { class: 'card' },
+      h('h2', {}, 'Spelling'),
+      h('label', { class: 'field' }, h('span', {}, 'Answer spelling with'),
+        h('select', { 'data-setting': 'inputMode', onchange: (e) => { state.settings.inputMode = e.target.value; save(); } },
+          [['type', '⌨️ the keyboard'], ['write', '✍️ a stylus or finger']].map(([v, t]) => h('option', { value: v, selected: (state.settings.inputMode || 'type') === v }, t)))),
+      h('p', { class: 'small', id: 'hwstatus' }, 'Each spelling task also has a Type / Write switch.')),
+    h('section', { class: 'card' },
       h('h2', {}, 'Full screen'),
       fsAvailable()
         ? h('button', { class: 'btn ghost', type: 'button', onclick: toggleFullscreen }, '⛶ Toggle full screen')
@@ -294,6 +301,12 @@ function viewMe() {
         type: 'button', class: 'btn danger',
         onclick: () => { if (confirm('Erase all progress on this device? This cannot be undone.')) { resetAll(); toast('Progress erased'); route(); } },
       }, 'Erase progress')));
+  handwritingMode().then((m) => {
+    const el = root.querySelector('#hwstatus');
+    if (el) el.textContent = m === 'auto'
+      ? 'This device can read Greek handwriting, so writing is marked for you.'
+      : 'Writing with a pen is checked by comparing with the correct letters (this device cannot read Greek handwriting by itself). New words are traced.';
+  });
   return root;
 }
 
@@ -578,6 +591,7 @@ function renderQuestion(q) {
     const target = Array.from(q.answer);
     const prefix = ''; // nothing is typed for her: a hint is shown as a pattern, and the little word is hers to supply
     const limit = Math.max(12, target.length + 6);
+    let mode = state.settings.inputMode === 'write' ? 'write' : 'type'; // typing on the keyboard, or writing with a stylus / finger
     let typed = '';
     const box = h('div', { class: 'writebox', 'aria-live': 'polite', 'aria-label': 'Your answer', 'data-answer': DEBUG ? q.answer : null });
     const draw = () => {
@@ -593,7 +607,7 @@ function renderQuestion(q) {
         ...Array.from(shown).map((ch, i) => h('span', { class: `wch ${i < prefix.length ? 'given' : ''}` }, ch === ' ' ? ' ' : ch)),
         h('i', { class: 'caret' }),
         ...pattern);
-      checkBtn.disabled = typed.length === 0;
+      if (mode === 'type') checkBtn.disabled = typed.length === 0;
     };
     const addChar = (ch) => {
       if (locked) return;
@@ -609,51 +623,114 @@ function renderQuestion(q) {
       if (swap) { typed = typed.slice(0, -1) + swap; draw(); }
     };
     draw();
-    body.append(box, greekKeyboard({ onChar: addChar, onBack: backspace, onAccent: accent }));
+    const typeView = h('div', { class: 'typeview' }, box, greekKeyboard({ onChar: addChar, onBack: backspace, onAccent: accent }));
+    // ---- the handwriting pad (stylus or finger) ----
+    const pad = createPad({ onChange: () => { if (mode === 'write' && !locked) checkBtn.disabled = !pad.hasInk(); } });
+    if (q.scaffold) pad.setModel(q.answer, 'trace'); // brand-new words: trace the faint letters
+    const padView = h('div', { class: 'padview' },
+      h('p', { class: 'padhint' }, q.scaffold ? '✍️ Trace the faint letters with your pen.' : '✍️ Write it with your pen. Don’t forget the little word!'),
+      pad.el,
+      h('div', { class: 'padtools' },
+        h('button', { type: 'button', class: 'mini', onclick: () => { sfx('tap'); pad.undo(); } }, '↶ Undo'),
+        h('button', { type: 'button', class: 'mini', onclick: () => { sfx('tap'); pad.clear(); } }, '🗑 Start again')));
+    const seg = (m, text) => h('button', { type: 'button', class: 'seg', 'data-mode': m, onclick: () => setMode(m) }, text);
+    const modeSwitch = h('div', { class: 'modeswitch', role: 'group', 'aria-label': 'How to answer' }, seg('type', '⌨️ Type'), seg('write', '✍️ Write'));
+    const setMode = (m, remember = true) => {
+      if (locked) return;
+      mode = m;
+      if (remember) { state.settings.inputMode = m; save(); }
+      typeView.hidden = m !== 'type'; padView.hidden = m !== 'write';
+      modeSwitch.querySelectorAll('.seg').forEach((b) => b.classList.toggle('on', b.dataset.mode === m));
+      checkBtn.disabled = m === 'type' ? typed.length === 0 : !pad.hasInk();
+    };
+    body.append(modeSwitch, typeView, padView);
+    setMode(mode, false);
     // a physical keyboard works too (Greek letters, Backspace)
     wrap._type = (e) => {
-      if (locked || e.ctrlKey || e.metaKey || e.altKey) return false;
+      if (locked || mode !== 'type' || e.ctrlKey || e.metaKey || e.altKey) return false;
       if (e.key === 'Backspace') { backspace(); return true; }
       if (e.key === ' ') { addChar(' '); return true; }
       if (e.key.length === 1 && GREEK_CHAR.test(e.key.toLowerCase())) { addChar(e.key.toLowerCase()); return true; }
       return false;
     };
-    getAnswer = () => {
-      const given = normWritten(prefix + typed);
+    // marks a piece of writing (typed, or read from handwriting). cls = how to colour the box
+    const gradeText = (raw) => {
+      const given = normWritten(raw);
       const accepted = [q.answer, ...(q.alts || [])].map(normWritten);
-      box.classList.add('locked');
-      if (accepted.includes(given)) { box.classList.add('right'); return { ok: true, answer: q.answer }; }
+      if (accepted.includes(given)) return { ok: true, answer: q.answer, cls: 'right' };
       // the right word but without its little word: close, not right (the little word is part of the answer)
       if (q.art && (q.noun || []).map(normWritten).includes(given)) {
-        box.classList.add('close');
-        return { ok: false, close: true, answer: q.answer, note: `Right word! Now add its little word: ${q.art}` };
+        return { ok: false, close: true, answer: q.answer, cls: 'close', note: `Right word! Now add its little word: ${q.art}` };
       }
       // the right word with the WRONG little word is wrong (not "one letter off"): the little word is being tested
       const parts = given.split(' ');
       if (q.art && parts.length === 2 && parts[0] !== normWritten(q.art) && (q.noun || []).map(normWritten).includes(parts[1])) {
-        box.classList.add('wrong');
-        return { ok: false, answer: q.answer, note: `Right word, but its little word is ${q.art}.` };
+        return { ok: false, answer: q.answer, cls: 'wrong', note: `Right word, but its little word is ${q.art}.` };
       }
       // "close": the right letters with a missing or wrong accent, or exactly one letter different
-      const sameLetters = accepted.some((a) => bareLetters(a) === bareLetters(given));
-      const oneOff = !sameLetters && Array.from(given).length >= 5 && accepted.some((a) => lev(a, given) <= 1);
+      const sameLetters = accepted.some((x) => bareLetters(x) === bareLetters(given));
+      const oneOff = !sameLetters && Array.from(given).length >= 5 && accepted.some((x) => lev(x, given) <= 1);
       if (sameLetters || oneOff) {
-        box.classList.add('close');
-        return { ok: false, close: true, answer: q.answer, note: sameLetters ? 'Right letters. Check the accent!' : 'So close! One letter is different.' };
+        return { ok: false, close: true, answer: q.answer, cls: 'close', note: sameLetters ? 'Right letters. Check the accent!' : 'So close! One letter is different.' };
       }
-      box.classList.add('wrong');
-      return { ok: false, answer: q.answer, note: `You wrote: ${given}` };
+      return { ok: false, answer: q.answer, cls: 'wrong', note: `You wrote: ${given}` };
+    };
+    // Handwriting. Reading it is a guess, so a miss never costs a heart: it is "so close" and the word comes back.
+    //   1. Chrome that can read Greek handwriting reads it and marks it like typing
+    //   2. tracing a faint model is marked by how well her pen followed the letters
+    //   3. otherwise she compares with the correct writing and says how she did
+    const selfCheck = () => new Promise((resolve) => {
+      pad.setModel(q.answer, 'show');
+      const done = (ok) => { bar.remove(); resolve(ok); };
+      const bar = h('div', { class: 'selfcheck' },
+        h('p', {}, 'Compare your writing with the green letters. How did you do?'),
+        h('div', { class: 'row' },
+          h('button', { type: 'button', class: 'btn', 'data-self': 'ok', onclick: () => done(true) }, '✓ I got it'),
+          h('button', { type: 'button', class: 'btn ghost', 'data-self': 'close', onclick: () => done(false) }, 'A bit different')));
+      padView.querySelector('.padtools').hidden = true; padView.querySelector('.padhint').hidden = true;
+      padView.append(bar);
+      bar.scrollIntoView({ block: 'nearest' });
+    });
+    const gradeWritten = async () => {
+      pad.lock();
+      checkBtn.disabled = true;
+      const strokes = pad.strokes();
+      const cands = await recognize(strokes);
+      let r;
+      if (cands && cands.length) {
+        const graded = cands.map(gradeText);
+        r = graded.find((g) => g.ok) || graded.find((g) => g.close) || { ...graded[0], ok: false, close: true, cls: 'close', note: `I read “${cands[0]}”. Check your writing!` };
+        if (r.ok) pad.el.classList.add('right'); else { pad.el.classList.add('close'); pad.setModel(q.answer, 'show'); }
+        return { ...r, answer: q.answer };
+      }
+      if (q.scaffold) { // tracing
+        const { W, H } = pad.size();
+        const sc = traceScore(strokes, q.answer, W, H);
+        if (sc.coverage >= 0.55 && sc.stray <= 0.4) { pad.el.classList.add('right'); return { ok: true, answer: q.answer }; }
+        pad.el.classList.add('close'); pad.setModel(q.answer, 'show');
+        return { ok: false, close: true, answer: q.answer, note: 'Follow all of the faint letters with your pen.' };
+      }
+      const ok = await selfCheck();
+      if (ok) { pad.el.classList.add('right'); return { ok: true, answer: q.answer }; }
+      pad.el.classList.add('close');
+      return { ok: false, close: true, answer: q.answer, note: 'Look at the green letters and try again later.' };
+    };
+    getAnswer = async () => {
+      if (mode === 'write') return gradeWritten();
+      const r = gradeText(prefix + typed);
+      box.classList.add('locked', r.cls);
+      return r;
     };
   } else if (q.kind === 'match') {
     renderMatch(q, body, foot, fb);
     return;
   }
 
-  const finish = () => {
+  const finish = async () => {
     if (locked) return;
     locked = true;
     revealMonster(body.querySelector('.qmonster'));
-    const r = getAnswer();
+    const r = await getAnswer();
     if (r.close) {
       // nearly right: no heart lost, but she writes it again later
       recordClose(q);
