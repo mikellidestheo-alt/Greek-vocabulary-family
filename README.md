@@ -16,8 +16,11 @@ Plain HTML, CSS and JavaScript. There is nothing to install and no build step.
   (θείος/θεία, ξάδερφος/ξαδέρφη) and a few plurals (γονείς, ξαδέρφια).
   Only grandparents get **προ-** (προπάππους, προγιαγιά). Great-uncles and great-aunts are just θείος/θεία.
 - **Every relative is a monster**: fuzzy, tie-dye and two-tone fur, slit eyes and crooked teeth.
-  **Every task shows the monster of the family member it is about**, beside the question. The exceptions
-  are the picture questions, where the monsters are the question, and matching, which has a monster on each card.
+  **Every task shows the monster of the family member it is about**, beside the question. Where the picture
+  would give the answer away (what a word means, which little word it takes, which relative a sentence is about,
+  anything she only hears) it starts as a grey mystery silhouette with a "?" and pops into full colour once she
+  has answered. On matching, each correct pair reveals its monster. The picture questions don't repeat a monster,
+  because there the monsters are the question.
 - **3 lessons per unit**, getting harder as she learns, then a final "whole family mix".
 
 ### Four skills, in every lesson

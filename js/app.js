@@ -37,7 +37,8 @@ const skillInfo = (id) => SKILLS.find((s) => s.id === id);
 // sizes are in rem so the whole app scales up on tablets
 function avatar(pic, size = 64, bg = '#e9defa') {
   const rem = `${(size / 16).toFixed(2)}rem`;
-  return h('span', { class: 'avatar', style: `width:${rem};height:${rem}`, html: avatarSVG(pic, { bg }) });
+  // the tile colour lives on the wrapper (not inside the drawing) so a monster can be shown as a silhouette
+  return h('span', { class: 'avatar', style: `width:${rem};height:${rem};background:${bg}`, html: avatarSVG(pic, { bg: 'none' }) });
 }
 const unitBg = (wid) => {
   const u = UNITS.find((x) => x.words.includes(wid));
@@ -434,12 +435,29 @@ function skipQuestion() { L.total = Math.max(1, L.total - 1); L.i++; nextQuestio
 
 // Every task shows the monster of the family member it is about, beside the title.
 // (Not where the monsters ARE the question: the picture questions, and matching, which has a monster on each card.)
+//
+// Where seeing the monster would hand her the answer (what a word means, which little word it takes, which family
+// member a sentence is about, anything she only hears), it starts as a mystery silhouette with a "?" and is revealed,
+// in full colour, once she has answered. Where it doesn't help (English prompts for writing, pronunciation of a word
+// already on screen, male/female partner) it is shown straight away.
+const MYSTERY_TYPES = new Set(['see-en', 'article', 's-blank', 's-translate', 'write-gap']);
+const monsterGivesItAway = (q) => !!q.listen || MYSTERY_TYPES.has(q.type);
+function revealMonster(el) {
+  if (!el || !el.classList.contains('mystery')) return;
+  el.classList.remove('mystery');
+  el.classList.add('reveal');
+  el.removeAttribute('aria-label');
+}
 function questionHead(q) {
   const monster = word(q.wid);
   const noMonster = !monster || q.kind === 'match' || q.type === 'listen-pic' || q.type === 'pic-el' || q.type === 'write-pic';
+  const mystery = !noMonster && monsterGivesItAway(q);
   return h('div', { class: 'qhead' },
     h('h1', { class: 'qtitle' }, q.title),
-    noMonster ? null : h('span', { class: 'qmonster', 'data-monster': DEBUG ? monster.id : null }, wordAvatar(monster, 80)));
+    noMonster ? null : h('span', {
+      class: `qmonster ${mystery ? 'mystery' : ''}`, 'data-monster': DEBUG ? monster.id : null,
+      'aria-label': mystery ? 'A mystery monster. Answer to see who it is.' : null,
+    }, wordAvatar(monster, 80)));
 }
 
 // ---- writing: an on-screen Greek keyboard ----
@@ -617,6 +635,7 @@ function renderQuestion(q) {
   const finish = () => {
     if (locked) return;
     locked = true;
+    revealMonster(body.querySelector('.qmonster'));
     const r = getAnswer();
     if (r.close) {
       // nearly right: no heart lost, but she writes it again later
@@ -763,7 +782,7 @@ function addSpeechConfirm(q, foot) {
 function renderMatch(q, body, foot, fb) {
   foot.replaceChildren();
   let left = null, right = null, matched = 0, hadMiss = false, over = false;
-  const lbtn = new Map(), rbtn = new Map();
+  const lbtn = new Map(), rbtn = new Map(), avs = new Map(); // avs: the monsters on the Greek cards
   const unsel = (m) => m.forEach((b) => b.classList.remove('sel'));
   const clear = () => { left = right = null; unsel(lbtn); unsel(rbtn); };
   const tryPair = () => {
@@ -772,6 +791,7 @@ function renderMatch(q, body, foot, fb) {
       [lbtn.get(left), rbtn.get(right)].forEach((b) => { b.classList.add('right'); b.disabled = true; });
       const p = q.pairs.find((x) => x.id === left);
       playWord(p.w); sfx('ok'); matched++;
+      revealMonster(avs.get(left)); // a correct pair reveals the monster
       const pw = ws(p.id); pw.seen++; pw.ok++; if (!hadMiss) pw.s = Math.min(5, pw.s + 1);
       L.touched.add(p.id);
       clear();
@@ -787,13 +807,14 @@ function renderMatch(q, body, foot, fb) {
       hadMiss = true; L.hearts--; L.mistakes++; sfx('bad');
       const wsx = ws(left); wsx.bad++; wsx.s = Math.max(0, wsx.s - 1);
       clear(); updateHearts();
-      if (L.hearts <= 0) { over = true; bumpSkill('translation', false); showFeedback(fb, foot, false, null, q, { skipRecord: true }); }
+      if (L.hearts <= 0) { over = true; bumpSkill('translation', false); avs.forEach(revealMonster); showFeedback(fb, foot, false, null, q, { skipRecord: true }); }
     }
     save();
   };
+  q.pairs.forEach((p) => { const av = wordAvatar(p.w, 36); av.classList.add('mystery'); avs.set(p.id, av); });
   const leftCol = h('div', { class: 'col' }, q.pairs.map((p) => {
     const b = h('button', { type: 'button', class: 'opt greek', 'data-pid': DEBUG ? p.id : null, onclick: () => { if (b.disabled) return; unsel(lbtn); left = p.id; b.classList.add('sel'); playWord(p.w); tryPair(); } },
-    wordAvatar(p.w, 36), h("span", {}, p.el));
+    avs.get(p.id), h('span', {}, p.el));
     lbtn.set(p.id, b); return b;
   }));
   const rightCol = h('div', { class: 'col' }, q.rightOrder.map((id) => {
