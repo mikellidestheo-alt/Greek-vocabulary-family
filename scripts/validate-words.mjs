@@ -12,7 +12,7 @@ for (const w of WORDS) {
   ids.add(w.id);
   if (w.el !== w.el.normalize('NFC')) errors.push(`${w.id}: Greek text is not NFC-normalised`);
   if (w.poss && w.poss !== w.poss.normalize('NFC')) errors.push(`${w.id}: "poss" is not NFC-normalised`);
-  for (const a of [...(w.alt || []), ...(w.altPoss || [])]) if (a !== a.normalize('NFC')) errors.push(`${w.id}: alternative spelling "${a}" is not NFC-normalised`);
+  for (const a of [...(w.alt || []), ...(w.altPoss || []), ...(w.heardAs || [])]) if (a !== a.normalize('NFC')) errors.push(`${w.id}: alternative spelling "${a}" is not NFC-normalised`);
   if (w.poss && !(w.altPoss || []).length !== !(w.alt || []).length) errors.push(`${w.id}: give "altPoss" whenever a word has both "poss" and "alt"`);
   if (w.art && !['ο', 'η', 'το', 'οι', 'τα'].includes(w.art)) errors.push(`${w.id}: unknown article "${w.art}"`);
   if (!/[A-Z]/.test(w.tr || '') && (w.tr || '').split('-').length > 1) errors.push(`${w.id}: tr has no CAPITAL stressed syllable`);

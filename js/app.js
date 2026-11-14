@@ -673,7 +673,7 @@ function renderQuestion(q) {
 // Say-it task. On Android Chrome the browser listens and judges the word. If recognition is not
 // available the child records herself, hears herself next to the real word, and rates herself.
 function speechUI(w, { area, status, onResult, onBlocked }) {
-  let tries = 0, finished = false, nounHeard = false;
+  let tries = 0, finished = false, nounHeard = false, emptyTries = 0;
   const finish = (ok, info = {}) => {
     if (finished) return;
     finished = true;
@@ -704,6 +704,7 @@ function speechUI(w, { area, status, onResult, onBlocked }) {
         if (verdict === true) { finish(true, { msg: `You said it! 🎉 ${heard}`.trim() }); return; }
         tries++;
         if (verdict === 'noArticle') nounHeard = true;
+        if (!alts.length) emptyTries++; // Chrome returned nothing at all
         // The microphone often can't catch a tiny word like "ο". Once it has heard the word itself on a second go,
         // trust her rather than leave her stuck.
         if (tries >= 2 && nounHeard) {
@@ -715,7 +716,11 @@ function speechUI(w, { area, status, onResult, onBlocked }) {
           : verdict === 'wrongArticle'
             ? `${heard}Nearly! Check the little word: “${label(w)}”.`
             : alts[0] ? `${heard}Try again!` : 'I didn’t catch that. Try again!';
-        if (tries >= 2) finish(false);
+        if (tries >= 2) {
+          // Chrome heard nothing at all, twice: don't leave her stuck, let her check herself instead
+          if (emptyTries >= 2 && canRecord()) { recordMode('I couldn’t hear you. Let’s check another way. '); return; }
+          finish(false);
+        }
       } catch (err) {
         mic.classList.remove('live');
         if (err === 'denied') blocked();
@@ -725,7 +730,7 @@ function speechUI(w, { area, status, onResult, onBlocked }) {
   };
 
   // B: record yourself, compare with the real word, rate yourself
-  const recordMode = () => {
+  const recordMode = (preface = '') => {
     if (!canRecord()) { status.textContent = 'Speaking practice isn’t available on this device.'; onBlocked(); return; }
     let mineUrl = null, recording = false;
     const playMine = (chain) => {
@@ -744,7 +749,7 @@ function speechUI(w, { area, status, onResult, onBlocked }) {
         h('button', { class: 'btn', type: 'button', onclick: () => finish(true) }, '😄 I said it well!'),
         h('button', { class: 'btn ghost', type: 'button', onclick: () => finish(false) }, '🔁 More practice')));
     area.replaceChildren(mic, after);
-    status.textContent = 'Tap the microphone, say the word, then tap again to stop.';
+    status.textContent = `${preface}Tap the microphone, say the word, then tap again to stop.`;
     mic.onclick = async () => {
       try {
         if (!recording) {

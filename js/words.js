@@ -14,6 +14,8 @@
 //          so they are never offered as wrong answers for each other
 //    alt   (optional) other correct spellings, accepted when she writes the word
 //          (e.g. αδελφός for αδερφός)
+//    heardAs (optional) things the microphone is known to write when the word is said,
+//          which are accepted as that word (e.g. it hears μπαμπάς as the film star Μπαντέρας)
 //    poss  (optional) spelling when followed by μου, if the accent moves
 //          (ξάδερφος -> ξάδερφός μου)
 //    pic   what the little monster looks like (see avatars.js)
@@ -41,7 +43,7 @@ export const WORDS = [
   // ---------------- Mum & Dad ----------------
   { id: 'mama', el: 'μαμά', art: 'η', tr: 'ma-MA', en: 'mum', grp: 'mum', pair: 'mpampas',
     hint: 'The everyday word for mum.', pic: MUM, picEx: true },
-  { id: 'mpampas', el: 'μπαμπάς', art: 'ο', tr: 'ba-BAS', en: 'dad', grp: 'dad', pair: 'mama',
+  { id: 'mpampas', el: 'μπαμπάς', heardAs: ['μπαντέρας', 'banderas', 'παπάς', 'μπάμπα'], art: 'ο', tr: 'ba-BAS', en: 'dad', grp: 'dad', pair: 'mama',
     hint: 'The everyday word for dad. When you call him, say «Μπαμπά!»', pic: DAD, picEx: true },
   { id: 'mitera', el: 'μητέρα', art: 'η', tr: 'mi-TE-ra', en: 'mother', grp: 'mum', pair: 'pateras',
     hint: 'The formal word. At home you say μαμά.', pic: MUM },

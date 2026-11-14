@@ -161,34 +161,39 @@ export const canListen = () => !!SR();
 
 // Listens once for a Greek word. Resolves with a list of guesses ([] if nothing was heard).
 // Rejects with 'denied' (microphone blocked) or 'unavailable' (recognition does not work here).
-export function listenOnce({ ms = 7000 } = {}) {
+export function listenOnce({ ms = 9000 } = {}) {
   return new Promise((resolve, reject) => {
     let r;
     try { r = new (SR())(); } catch { reject('unavailable'); return; }
     r.lang = 'el-GR';
     r.maxAlternatives = 5;
-    r.interimResults = false;
+    // Partial guesses are kept too: Chrome sometimes gives up before its "final" answer, and for a short word the
+    // right guess is often among the partial ones.
+    r.interimResults = true;
     let done = false;
-    const finish = (alts, err) => {
+    const heard = new Set();
+    const finish = (err) => {
       if (done) return;
       done = true; clearTimeout(timer);
       try { r.abort(); } catch { /* ignore */ }
-      if (err) reject(err); else resolve(alts);
+      if (err) reject(err); else resolve([...heard]);
     };
     r.onresult = (e) => {
-      const alts = [];
-      for (const res of e.results) for (let i = 0; i < res.length; i++) alts.push(res[i].transcript);
-      finish(alts);
+      let final = false;
+      for (const res of e.results) {
+        if (res.isFinal !== false) final = true; // (interim results have isFinal === false)
+        for (let i = 0; i < res.length; i++) if (res[i].transcript.trim()) heard.add(res[i].transcript.trim());
+      }
+      if (final) finish();
     };
     r.onerror = (e) => {
-      if (e.error === 'not-allowed') finish([], 'denied');
-      else if (e.error === 'service-not-allowed' || e.error === 'network' || e.error === 'language-not-supported') finish([], 'unavailable');
-      else finish([]);
+      if (e.error === 'not-allowed') finish('denied');
+      else if (e.error === 'service-not-allowed' || e.error === 'network' || e.error === 'language-not-supported') finish('unavailable');
+      else finish();
     };
-    r.onnomatch = () => finish([]);
-    r.onend = () => finish([]);
-    const timer = setTimeout(() => finish([]), ms);
-    try { r.start(); } catch { finish([], 'unavailable'); }
+    r.onend = () => finish();
+    const timer = setTimeout(() => finish(), ms);
+    try { r.start(); } catch { finish('unavailable'); }
   });
 }
 
@@ -215,14 +220,18 @@ export function phon(s) {
 }
 
 // Kind to a child: compares by sound, so accents, ο/ω, η/ι/υ and one or two slips in the word don't matter, and a
-// Latin-letter transcript works too. The little word counts: "ο μπαμπάς" needs the "ο" (or anything that sounds
-// like it, glued on or not). Returns true, false, or 'noArticle' (the word was heard but not its little word), so
-// the app can say what is missing.
+// Latin-letter transcript works too. A word can also list `heardAs`: other things the recogniser is known to write when
+// the word is said (for example it turns "μπαμπάς" into the film star "Μπαντέρας"). Those are matched strictly.
+// The little word counts: "ο μπαμπάς" needs the "ο" (or anything that sounds like it, glued on or not).
+// Returns true, false, 'noArticle' (the word was heard but not its little word) or 'wrongArticle'.
 export function judgeSpeech(alts, w) {
   const nounP = phon(w.el);
   if (!nounP) return false;
   const artP = phon(w.art || '');
   const tol = nounP.length <= 3 ? 0 : nounP.length <= 6 ? 1 : 2;
+  const keys = [{ p: nounP, tol }, ...(w.heardAs || []).map((a) => ({ p: phon(a), tol: 1 }))].filter((k) => k.p);
+  const dist = (t) => Math.min(...keys.map((k) => lev(t, k.p)));
+  const nounIs = (t) => keys.some((k) => lev(t, k.p) <= k.tol);
   const otherArts = ['ο', 'η', 'το', 'οι', 'τα'].map(phon).filter((x) => x !== artP);
   let nounHeard = false, wrongArt = false;
   for (const a of alts) {
@@ -230,7 +239,7 @@ export function judgeSpeech(alts, w) {
     const all = toks.join('');
     let noun = false, art = false;
     toks.forEach((t, i) => {
-      if (lev(t, nounP) <= tol) {
+      if (nounIs(t)) {
         noun = true;
         const before = toks.slice(0, i);
         if (before.some((x) => x === artP)) art = true;
@@ -238,9 +247,12 @@ export function judgeSpeech(alts, w) {
       }
       // the little word glued onto the word: "ομπαμπάς"
       // (only if cutting the little word off makes it a BETTER match: γιαγιά itself starts with the sound of η)
-      if (artP && t.length > artP.length && t.startsWith(artP) && lev(t.slice(artP.length), nounP) <= tol && lev(t.slice(artP.length), nounP) < lev(t, nounP)) { noun = true; art = true; }
+      if (artP && t.length > artP.length && t.startsWith(artP)) {
+        const rest = t.slice(artP.length);
+        if (nounIs(rest) && dist(rest) < dist(t)) { noun = true; art = true; }
+      }
     });
-    if (!noun && all.includes(nounP)) { noun = true; art = !!artP && all.startsWith(artP); } // the word split over several tokens
+    if (!noun && keys.some((k) => all.includes(k.p))) { noun = true; art = !!artP && all.startsWith(artP); } // the word split over several tokens
     if (noun && (art || !artP)) return true;
     if (noun) nounHeard = true;
   }
