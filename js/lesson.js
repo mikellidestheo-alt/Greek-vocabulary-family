@@ -5,7 +5,7 @@
 //   spelling      write it right: letter tiles, missing letter, correct spelling
 //   pronunciation hear it, stress it, say it out loud
 //   sentences     fill the gap, translate, build a sentence
-import { WORDS, UNITS, word, unitOf, label, sentencesFor } from './words.js';
+import { WORDS, UNITS, word, unitOf, label, sentencesFor, ART_TR } from './words.js';
 import { ws } from './store.js';
 
 export const SKILLS = [
@@ -40,8 +40,9 @@ function distractors(w, n, { ok = () => true, preferUnit = true } = {}) {
   return [...sample(home, n), ...sample(rest, n)].slice(0, n);
 }
 const opt = (key, labelText, correct, extra = {}) => ({ key, label: labelText, correct, ...extra });
-// writing the word with its little word as well is always fine
-const altsWithArticle = (w) => [...(w.alt || []), ...(w.art ? [label(w), ...(w.alt || []).map((a) => `${w.art} ${a}`)] : [])];
+// Written answers always include the little word. These are the accepted alternative spellings WITH it.
+const fullAlts = (w) => (w.alt || []).map((a) => `${w.art} ${a}`);
+const writeBase = (w) => ({ kind: 'write', answer: label(w), alts: fullAlts(w), noun: [w.el, ...(w.alt || [])], art: w.art, say: w });
 
 // ---------- spelling helpers ----------
 // Plausible misspellings: lost/moved accents, ι-η-υ and ο-ω mix-ups, ει/οι/αι, swapped or doubled letters.
@@ -86,14 +87,24 @@ function letterOptions(correct) {
 const syllables = (tr) => tr.split('-');
 const stressIndex = (tr) => syllables(tr).findIndex((s) => /[A-Z]/.test(s) && s === s.toUpperCase());
 
+const ARTICLES = ['ο', 'η', 'το', 'οι', 'τα'];
+// the pronunciation of the word with its little word: "o ba-BAS"
+const trFull = (w, art = w.art) => (art ? `${ART_TR[art]} ${w.tr}` : w.tr);
+
 function trOptions(w) {
   const syl = syllables(w.tr), si = stressIndex(w.tr);
   const wrongStress = syl.length > 1
     ? syl.map((_, j) => j).filter((j) => j !== si).map((j) => syl.map((s, k) => (k === j ? s.toUpperCase() : s.toLowerCase())).join('-'))
     : [];
-  const others = WORDS.filter((x) => x.id !== w.id && x.tr !== w.tr && x.art !== '').map((x) => x.tr);
-  const sameLen = others.filter((t) => syllables(t).length === syl.length);
-  return uniq([...sample(wrongStress, 2), ...sample(sameLen, 3), ...sample(others, 3)]).filter((t) => t !== w.tr).slice(0, 3);
+  const correct = trFull(w);
+  // right word but the wrong little word (the pronunciation of the article is tested too)
+  const wrongArt = w.art ? uniq(ARTICLES.filter((a) => ART_TR[a] !== ART_TR[w.art]).map((a) => trFull(w, a))) : [];
+  const others = WORDS.filter((x) => x.id !== w.id && x.tr !== w.tr && x.art !== '').map((x) => trFull(x));
+  return uniq([
+    ...sample(wrongArt, 1),
+    ...sample(wrongStress, 1).map((t) => (w.art ? `${ART_TR[w.art]} ${t}` : t)),
+    ...sample(others, 6),
+  ]).filter((t) => t !== correct).slice(0, 3);
 }
 
 // ---------- sentences ----------
@@ -105,6 +116,16 @@ const pickSentence = (w, preferT) => {
   return (same.length ? same : list)[rnd((same.length ? same : list).length)];
 };
 const sameArtPool = (w) => WORDS.filter((x) => x.id !== w.id && x.art && x.art === w.art && x.id !== 'pro' && x.en !== w.en && !(w.grp && x.grp === w.grp));
+
+// sentences where the word comes right after its little word: "Αυτός είναι ο θείος μου."
+function artGapCandidates(w) {
+  if (!w.art) return [];
+  return sentencesFor(w.id).map((sn) => {
+    const toks = sn.el.split(' ');
+    const i = toks.findIndex((t, k) => strip(t).toLowerCase() === w.art && strip(toks[k + 1] || '') === sn.form);
+    return i >= 0 ? { s: sn, toks, i } : null;
+  }).filter(Boolean);
+}
 
 function otherTranslations(w, s, n = 3) {
   const cands = sample(WORDS.filter((x) => x.id !== w.id && x.art && !(w.grp && x.grp === w.grp)), 12)
@@ -156,58 +177,80 @@ const makers = {
   },
 
   // ===== spelling =====
-  'build-en': (w) => ({ kind: 'build', title: 'Write this in Greek', prompt: w.en, promptClass: 'en', silent: true, say: w, answer: w.el, tiles: tilesFor(w.el) }),
-  'build-listen': (w) => ({ kind: 'build', title: 'Write what you hear', listen: true, say: w, answer: w.el, tiles: tilesFor(w.el) }),
-  'spell-pick': (w) => ({
-    kind: 'choice', title: 'Which spelling is correct?', prompt: w.en, promptClass: 'en', say: w, optClass: 'greek',
-    options: shuffle([opt('ok', w.el, true), ...misspellings(w.el).map((m, i) => opt(`x${i}`, m, false))]),
+  // Spelling covers the little word as well: she spells "ο μπαμπάς", not just "μπαμπάς".
+  'build-en': (w) => ({
+    kind: 'build', title: 'Write this in Greek', prompt: w.en, promptClass: 'en', sub: 'with its little word', silent: true, say: w,
+    answer: label(w), tiles: tilesFor(label(w)),
   }),
+  'build-listen': (w) => ({
+    kind: 'build', title: 'Write what you hear, with its little word', listen: true, say: w,
+    answer: label(w), tiles: tilesFor(label(w)),
+  }),
+  // One right answer; one has the wrong little word; the others have a slip in the spelling.
+  'spell-pick': (w) => {
+    const wrongArt = w.art ? sample(ARTICLES.filter((a) => a !== w.art), 1)[0] : null;
+    const withArt = (t) => (w.art ? `${w.art} ${t}` : t);
+    const wrong = [
+      ...(wrongArt ? [opt('xa', `${wrongArt} ${w.el}`, false)] : []),
+      ...misspellings(w.el).map((m, i) => opt(`x${i}`, withArt(m), false)),
+    ].slice(0, 3);
+    return {
+      kind: 'choice', title: 'Which spelling is correct?', prompt: w.en, promptClass: 'en', say: w, optClass: 'greek',
+      answerText: label(w), options: shuffle([opt('ok', label(w), true), ...wrong]),
+    };
+  },
+  // The missing letter can be in the little word too.
   'missing-letter': (w) => {
-    const chars = Array.from(w.el.normalize('NFC'));
-    const idxs = chars.map((c, i) => (isLetter(c) ? i : -1)).filter((i) => i >= 0);
-    const accented = idxs.filter((i) => ACC[chars[i]]);
-    const i = Math.random() < 0.4 && accented.length ? accented[rnd(accented.length)] : idxs[rnd(idxs.length)];
-    const shown = chars.map((c, k) => (k === i ? '＿' : c)).join(' ');
+    const chars = Array.from(label(w).normalize('NFC'));
+    const artLen = w.art ? Array.from(w.art).length : 0;
+    const letters = chars.map((c, i) => (isLetter(c) ? i : -1)).filter((i) => i >= 0);
+    const inArticle = letters.filter((i) => i < artLen);
+    const inWord = letters.filter((i) => i >= artLen);
+    const accented = inWord.filter((i) => ACC[chars[i]]);
+    let i;
+    if (inArticle.length && Math.random() < 0.35) i = inArticle[rnd(inArticle.length)];
+    else if (accented.length && Math.random() < 0.4) i = accented[rnd(accented.length)];
+    else i = inWord[rnd(inWord.length)];
+    const shown = chars.map((c, k) => (k === i ? '＿' : c === ' ' ? ' ' : c)).join(' ');
     return {
       kind: 'choice', title: 'Which letter is missing?', prompt: shown, promptClass: 'letters', sub: w.en, say: w,
-      gridClass: 'letters', optClass: 'greek', answerText: w.el,
+      gridClass: 'letters', optClass: 'greek', answerText: label(w),
       options: shuffle([opt(chars[i], chars[i], true), ...letterOptions(chars[i]).map((l) => opt(l, l, false))]),
     };
   },
 
-  // ===== spelling: writing whole words =====
-  // The first letter and the length are given (easiest way into writing).
+  // ===== spelling: writing whole phrases =====
+  // Every written answer is the word WITH its little word: "ο μπαμπάς". A bare "μπαμπάς" is "so close", not right.
+  // New words show a pattern: the first letter of the word is given, the little word is for her to supply.
   'write-hint': (w) => ({
-    kind: 'write', title: 'Write this in Greek', prompt: w.en, promptClass: 'en', sub: 'the first letter is given', silent: true, say: w,
-    answer: w.el, alts: w.alt, scaffold: true,
+    ...writeBase(w), title: 'Write this in Greek', prompt: w.en, promptClass: 'en', sub: 'with its little word. The first letter of the word is shown', silent: true, scaffold: true,
   }),
-  // English to a full written Greek word, no help.
   'write-en': (w) => ({
-    kind: 'write', title: 'Write this in Greek', prompt: w.en, promptClass: 'en', silent: true, say: w,
-    answer: w.el, alts: altsWithArticle(w),
+    ...writeBase(w), title: 'Write this in Greek', prompt: w.en, promptClass: 'en', sub: 'with its little word', silent: true,
   }),
-  // Hear it, write it.
   'write-listen': (w) => ({
-    kind: 'write', title: 'Write the word you hear', listen: true, say: w,
-    answer: w.el, alts: altsWithArticle(w),
+    ...writeBase(w), title: 'Write what you hear, with its little word', listen: true,
   }),
-  // See the monster, write who it is.
   'write-pic': (w) => ({
-    kind: 'write', title: 'Write who this is in Greek', pic: w, silent: true, say: w,
-    answer: w.el, alts: altsWithArticle(w),
+    ...writeBase(w), title: 'Write who this is, with its little word', pic: w, silent: true,
   }),
-  // Hardest: the word AND its little word (ο / η / το ...).
-  'write-full': (w) => ({
-    kind: 'write', title: 'Write it with its little word', prompt: w.en, promptClass: 'en', sub: 'ο, η or το first, then the word', silent: true, say: w,
-    answer: label(w), alts: (w.alt || []).map((a) => (w.art ? `${w.art} ${a}` : a)),
-  }),
-  // Write the missing word of a sentence.
+  // Write the missing word of a sentence (the little word is already in the sentence).
   'write-gap': (w) => {
     const s = pickSentence(w);
     const blanked = s.el.split(' ').map((t) => (strip(t) === s.form ? t.replace(s.form, '＿＿＿') : t)).join(' ');
     return {
       kind: 'write', title: 'Write the missing word', prompt: blanked, promptClass: 'sent', sub: s.en, silent: true, say: pseudo(s),
       answer: s.form, alts: s.form === w.el ? w.alt : w.altPoss,
+    };
+  },
+  // Write the missing LITTLE word of a sentence.
+  'write-art-gap': (w) => {
+    const cand = artGapCandidates(w);
+    const { s, toks, i } = cand[rnd(cand.length)];
+    const blanked = toks.map((t, k) => (k === i ? '＿' : t)).join(' ');
+    return {
+      kind: 'write', title: 'Write the missing little word', prompt: blanked, promptClass: 'sent', sub: s.en, silent: true, say: pseudo(s),
+      answer: w.art, alts: [],
     };
   },
 
@@ -217,8 +260,8 @@ const makers = {
     options: shuffle([opt(w.id, label(w), true, { pic: w }), ...distractors(w, 3, { ok: (x) => x.picEx }).map((d) => opt(d.id, label(d), false, { pic: d }))]),
   }),
   'say-tr': (w) => ({
-    kind: 'choice', title: 'How do you say it?', listen: true, say: w, optClass: 'trs', answerText: w.tr,
-    options: shuffle([opt('ok', w.tr, true), ...trOptions(w).map((t, i) => opt(`x${i}`, t, false))]),
+    kind: 'choice', title: 'How do you say it?', sub: 'with its little word', listen: true, say: w, optClass: 'trs', answerText: trFull(w),
+    options: shuffle([opt('ok', trFull(w), true), ...trOptions(w).map((t, i) => opt(`x${i}`, t, false))]),
   }),
   stress: (w) => {
     const syl = syllables(w.tr), si = stressIndex(w.tr);
@@ -272,7 +315,7 @@ export const TYPE_SKILL = {
   'see-en': 'translation', 'listen-en': 'translation', 'en-el': 'translation', 'pic-el': 'translation',
   article: 'translation', counterpart: 'translation', match: 'translation',
   'build-en': 'spelling', 'build-listen': 'spelling', 'spell-pick': 'spelling', 'missing-letter': 'spelling',
-  'write-hint': 'spelling', 'write-en': 'spelling', 'write-listen': 'spelling', 'write-pic': 'spelling', 'write-full': 'spelling', 'write-gap': 'spelling',
+  'write-hint': 'spelling', 'write-en': 'spelling', 'write-listen': 'spelling', 'write-pic': 'spelling', 'write-gap': 'spelling', 'write-art-gap': 'spelling',
   'listen-pic': 'pronunciation', 'say-tr': 'pronunciation', stress: 'pronunciation', speak: 'pronunciation',
   's-blank': 'sentences', 's-translate': 'sentences', 's-listen': 'sentences', 's-build': 'sentences',
 };
@@ -280,11 +323,12 @@ export const TYPE_SKILL = {
 // easy -> hard, by how well the word is known
 const TIERS = {
   translation: [['see-en', 'en-el', 'pic-el'], ['listen-en', 'en-el', 'counterpart', 'pic-el', 'article'], ['en-el', 'counterpart', 'article', 'listen-en']],
-  // spelling is about WRITING: new words start with a hint, then full words with no help, then the little word too
+  // spelling is about WRITING (and the little word is part of every answer): new words start with a pattern hint, then
+  // full phrases with no help, plus gap-fills for the word and for the little word
   spelling: [
-    ['write-hint', 'write-hint', 'write-hint', 'write-hint', 'build-en', 'missing-letter'],
-    ['write-en', 'write-listen', 'write-hint', 'write-gap', 'write-pic'],
-    ['write-full', 'write-gap', 'write-listen', 'write-en', 'write-pic'],
+    ['write-hint', 'write-hint', 'write-hint', 'build-en', 'missing-letter', 'spell-pick'],
+    ['write-en', 'write-listen', 'write-hint', 'write-gap', 'write-pic', 'write-art-gap'],
+    ['write-en', 'write-gap', 'write-listen', 'write-pic', 'write-art-gap'],
   ],
   pronunciation: [['listen-pic', 'say-tr', 'stress'], ['say-tr', 'stress', 'speak', 'listen-pic'], ['speak', 'say-tr', 'stress']],
   sentences: [['s-blank', 's-translate'], ['s-translate', 's-blank', 's-build'], ['s-build', 's-listen', 's-blank']],
@@ -306,7 +350,7 @@ function eligible(type, w, caps) {
     case 'missing-letter': return Array.from(w.el).filter(isLetter).length >= 3;
     case 'write-hint': case 'write-en': case 'write-listen': return !!w.art && Array.from(w.el).length >= 3 && Array.from(w.el).length <= 14;
     case 'write-pic': return !!w.picEx;
-    case 'write-full': return !!w.art;
+    case 'write-art-gap': return ARTICLES.includes(w.art) && artGapCandidates(w).length > 0;
     case 'write-gap': return sentencesFor(w.id).length > 0;
     case 'stress': return !!w.art && syllables(w.tr).length >= 2 && stressIndex(w.tr) >= 0;
     case 'speak': return !!caps.speak;

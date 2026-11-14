@@ -33,8 +33,8 @@ Progress for each skill is shown on the **Me** page.
 | Skill | Activities |
 | --- | --- |
 | 🌍 **Translate** | Greek → English, English → Greek, picture questions, ο / η / το, male ↔ female partner, matching pairs |
-| 🔤 **Spell** | **writing whole words** on an on-screen Greek keyboard (with an accent key): from English, from sound, from a picture, as the missing word of a sentence, and finally with its little word (ο / η / το). Brand-new words start with the first letter given (plus tile-building and missing-letter warm-ups), then everything is written with no help |
-| 🗣️ **Say it** | hear it and tap the monster, pick the right pronunciation, which syllable is loudest, **say it out loud**. Every Say-it task ends with her saying the word, and Continue stays locked until she has |
+| 🔤 **Spell** | **writing whole phrases, little word included** ("ο μπαμπάς", not just "μπαμπάς") on an on-screen Greek keyboard with an accent key: from English, from sound, from a picture, and as the missing word of a sentence, plus a task that asks only for the missing little word. Brand-new words show a pattern (`_ μ______`: the first letter of the word is given, the little word is hers to supply) and some tile-building, missing-letter and which-spelling warm-ups; a missing letter can be in the little word, and one wrong choice in "which spelling" has the wrong little word |
+| 🗣️ **Say it** | hear it and tap the monster, pick the right pronunciation (with the little word: "o ba-BAS", with a wrong-little-word option such as "ee ba-BAS"), which syllable is loudest, **say it out loud**. Every Say-it task ends with her saying the word **with its little word**, and Continue stays locked until she has |
 | 💬 **Sentences** | fill the missing word, translate a sentence, listen and understand, build a Greek sentence from word tiles |
 
 There are 85 sentences. Every word gets "This is my…", "Where is my…?" and "My … is here."
@@ -43,16 +43,19 @@ with the right Greek gender (Αυτός / Αυτή / Αυτό …), plus some ha
 **Speaking** is part of every Say-it task. After a correct answer she must say the word out loud
 before Continue unlocks. On an Android tablet with Chrome the browser listens through the
 microphone and checks the word, and it needs an internet connection because Chrome sends the audio to
-Google to be recognised. She gets two tries, and the check ignores accents and small slips. If recognition
+Google to be recognised. She gets two tries, and the check ignores accents and small slips in the word, but
+the little word has to be there: for "ο μπαμπάς", saying just "μπαμπάς" gets "Nearly! Say the little word too".
+If recognition
 isn't available she records herself, hears herself next to the real word, and rates herself. If the
 microphone is blocked, the app carries on without it. Speaking never costs a heart. A grown-up can switch
 it off under Me → Sound, and then Say-it tasks are tap-only.
 
 **How writing is marked.** Accents count, but the check is fair: a final ς is fixed automatically,
-both spellings of words like αδερφός / αδελφός are accepted, and typing the little word as well is fine.
-Right letters with a missing or wrong accent, or a single letter out, count as "so close": no heart is lost,
-the correct spelling is shown, and the word comes back later. Anything else costs a heart. A physical
-keyboard with Greek letters also works.
+both spellings of words like αδερφός / αδελφός are accepted. The little word is part of the answer:
+writing the right word without it ("μπαμπάς") is "so close" and shows what is missing, and the right word with
+the wrong little word ("η μπαμπάς") is wrong. Right letters with a missing or wrong accent, or a single
+letter out, also count as "so close": no heart is lost, the correct spelling is shown, and the word comes back
+later. Anything else costs a heart. A physical keyboard with Greek letters also works.
 
 ### Rewards
 

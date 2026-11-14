@@ -200,15 +200,23 @@ export function lev(a, b) {
   return d[a.length][b.length];
 }
 
-// Kind to a child: ignores accents, final-sigma and one or two slips.
+// Kind to a child: ignores accents, final-sigma and one or two slips in the word.
+// The little word counts too: "ο μπαμπάς" needs the "ο". Returns true, false, or 'noArticle' (the word was
+// heard but not its little word), so the app can tell her what is missing.
 export function judgeSpeech(alts, w) {
   const target = norm(w.el);
   if (!target) return false;
   const tol = target.length <= 3 ? 0 : target.length <= 7 ? 1 : 2;
-  return alts.some((a) => [a, ...a.split(/\s+/)].some((tok) => {
+  const nounOk = (a) => [a, ...a.split(/\s+/)].some((tok) => {
     const t = norm(tok);
     return t && (t === target || t.includes(target) || lev(t, target) <= tol);
-  }));
+  });
+  const hasNoun = alts.filter(nounOk);
+  if (!hasNoun.length) return false;
+  const art = norm(w.art || '');
+  if (!art) return true;
+  const artOk = (a) => a.split(/\s+/).some((tok) => norm(tok) === art) || norm(a).startsWith(art + target.slice(0, 2));
+  return hasNoun.some(artOk) ? true : 'noArticle';
 }
 
 // ---------- tiny sound effects (no files needed) ----------

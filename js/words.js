@@ -152,7 +152,7 @@ const DEM = {
   ο: { el: 'Αυτός', tr: 'af-TOS' }, η: { el: 'Αυτή', tr: 'af-TEE' }, το: { el: 'Αυτό', tr: 'af-TO' },
   οι: { el: 'Αυτοί', tr: 'af-TEE' }, τα: { el: 'Αυτά', tr: 'af-TA' },
 };
-const ART_TR = { ο: 'o', η: 'ee', το: 'to', οι: 'ee', τα: 'ta' };
+export const ART_TR = { ο: 'o', η: 'ee', το: 'to', οι: 'ee', τα: 'ta' };
 
 // Every word gets three template sentences ("This is my…", "Where is my…?",
 // "My … is here.") that follow the right Greek gender, plus any hand-written ones.

@@ -560,10 +560,10 @@ function renderQuestion(q) {
     const bank = h('div', { class: 'bank' });
     const tcls = `tile-l ${q.words ? 'tile-w' : ''}`;
     const draw = () => {
-      line.replaceChildren(...chosen.map((t) => h('button', { type: 'button', class: tcls, onclick: () => { if (locked) return; chosen.splice(chosen.indexOf(t), 1); draw(); sfx('tap'); } }, t.c)));
+      line.replaceChildren(...chosen.map((t) => h('button', { type: 'button', class: tcls, onclick: () => { if (locked) return; chosen.splice(chosen.indexOf(t), 1); draw(); sfx('tap'); } }, t.c === ' ' ? '\u2423' : t.c)));
       bank.replaceChildren(...q.tiles.map((t) => (chosen.includes(t)
-        ? h('span', { class: `${tcls} ghost` }, t.c)
-        : h('button', { type: 'button', class: tcls, onclick: () => { if (locked) return; chosen.push(t); draw(); sfx('tap'); } }, t.c))));
+        ? h('span', { class: `${tcls} ghost` }, t.c === ' ' ? '\u2423' : t.c)
+        : h('button', { type: 'button', class: tcls, onclick: () => { if (locked) return; chosen.push(t); draw(); sfx('tap'); } }, t.c === ' ' ? '\u2423' : t.c))));
       checkBtn.disabled = chosen.length === 0;
     };
     draw();
@@ -576,17 +576,23 @@ function renderQuestion(q) {
   } else if (q.kind === 'write') {
     // ---- write the whole word on the on-screen Greek keyboard ----
     const target = Array.from(q.answer);
-    const prefix = q.scaffold ? target[0] : '';
+    const prefix = ''; // nothing is typed for her: a hint is shown as a pattern, and the little word is hers to supply
     const limit = Math.max(12, target.length + 6);
     let typed = '';
     const box = h('div', { class: 'writebox', 'aria-live': 'polite', 'aria-label': 'Your answer', 'data-answer': DEBUG ? q.answer : null });
     const draw = () => {
       const shown = fixSigma(prefix + typed);
-      const blanks = q.scaffold ? Math.max(0, target.length - Array.from(shown).length) : 0;
+      // hint pattern, e.g.  "_ μ______"  : the first letter of the WORD is shown, everything else (the little word too) is blank
+      const done = Array.from(shown).length;
+      const nounAt = q.art ? Array.from(q.art).length + 1 : 0;
+      const pattern = q.scaffold ? target.slice(done).map((ch, k) => {
+        if (ch === ' ') return h('span', { class: 'wch' }, ' ');
+        return done + k === nounAt ? h('span', { class: 'wch given' }, ch) : h('span', { class: 'wblank' }, '_');
+      }) : [];
       box.replaceChildren(
         ...Array.from(shown).map((ch, i) => h('span', { class: `wch ${i < prefix.length ? 'given' : ''}` }, ch === ' ' ? ' ' : ch)),
         h('i', { class: 'caret' }),
-        ...Array.from({ length: blanks }, () => h('span', { class: 'wblank' }, '_')));
+        ...pattern);
       checkBtn.disabled = typed.length === 0;
     };
     const addChar = (ch) => {
@@ -617,6 +623,17 @@ function renderQuestion(q) {
       const accepted = [q.answer, ...(q.alts || [])].map(normWritten);
       box.classList.add('locked');
       if (accepted.includes(given)) { box.classList.add('right'); return { ok: true, answer: q.answer }; }
+      // the right word but without its little word: close, not right (the little word is part of the answer)
+      if (q.art && (q.noun || []).map(normWritten).includes(given)) {
+        box.classList.add('close');
+        return { ok: false, close: true, answer: q.answer, note: `Right word! Now add its little word: ${q.art}` };
+      }
+      // the right word with the WRONG little word is wrong (not "one letter off"): the little word is being tested
+      const parts = given.split(' ');
+      if (q.art && parts.length === 2 && parts[0] !== normWritten(q.art) && (q.noun || []).map(normWritten).includes(parts[1])) {
+        box.classList.add('wrong');
+        return { ok: false, answer: q.answer, note: `Right word, but its little word is ${q.art}.` };
+      }
       // "close": the right letters with a missing or wrong accent, or exactly one letter different
       const sameLetters = accepted.some((a) => bareLetters(a) === bareLetters(given));
       const oneOff = !sameLetters && Array.from(given).length >= 5 && accepted.some((a) => lev(a, given) <= 1);
@@ -679,9 +696,12 @@ function speechUI(w, { area, status, onResult, onBlocked }) {
       try {
         const alts = await listenOnce();
         mic.classList.remove('live');
-        if (judgeSpeech(alts, w)) { finish(true); return; }
+        const verdict = judgeSpeech(alts, w);
+        if (verdict === true) { finish(true); return; }
         tries++;
-        status.textContent = alts[0] ? `I heard “${alts[0]}”. Try again!` : 'I didn’t catch that. Try again!';
+        status.textContent = verdict === 'noArticle'
+          ? `Nearly! Say the little word too: “${label(w)}”.`
+          : alts[0] ? `I heard “${alts[0]}”. Try again!` : 'I didn’t catch that. Try again!';
         if (tries >= 2) finish(false);
       } catch (err) {
         mic.classList.remove('live');
@@ -738,7 +758,7 @@ function speechUI(w, { area, status, onResult, onBlocked }) {
 // ---- say it out loud (a question of its own) ----
 function renderSpeak(q, body, foot, fb) {
   const w = q.target;
-  const status = h('div', { class: 'speak-status', 'aria-live': 'polite' }, 'Listen first, then tap the microphone and say the word.');
+  const status = h('div', { class: 'speak-status', 'aria-live': 'polite' }, 'Listen first, then tap the microphone and say it with its little word.');
   const area = h('div', { class: 'speak-area' });
   body.append(
     h('div', { class: 'promptcard' },
