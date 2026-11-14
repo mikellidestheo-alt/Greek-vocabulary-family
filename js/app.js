@@ -432,6 +432,16 @@ function nextQuestion() {
 
 function skipQuestion() { L.total = Math.max(1, L.total - 1); L.i++; nextQuestion(); }
 
+// Every task shows the monster of the family member it is about, beside the title.
+// (Not where the monsters ARE the question: the picture questions, and matching, which has a monster on each card.)
+function questionHead(q) {
+  const monster = word(q.wid);
+  const noMonster = !monster || q.kind === 'match' || q.type === 'listen-pic' || q.type === 'pic-el' || q.type === 'write-pic';
+  return h('div', { class: 'qhead' },
+    h('h1', { class: 'qtitle' }, q.title),
+    noMonster ? null : h('span', { class: 'qmonster', 'data-monster': DEBUG ? monster.id : null }, wordAvatar(monster, 80)));
+}
+
 // ---- writing: an on-screen Greek keyboard ----
 // A tablet may not have a Greek keyboard installed, so the app brings its own (with an accent key).
 const KB_ROWS = [
@@ -464,7 +474,7 @@ function renderQuestion(q) {
   const sk = skillInfo(q.skill);
   const body = h('div', { class: `lbody ${q.kind === 'speak' ? 'speakbody' : ''}` },
     h('div', { class: `skilltag sk-${q.skill}` }, `${sk.icon} ${sk.title}`),
-    h('h1', { class: 'qtitle' }, q.title));
+    questionHead(q));
   const foot = h('div', { class: 'lfoot' });
   const fb = h('div', { class: 'fb', role: 'status', 'aria-live': 'polite' });
   const wrap = h('div', { class: 'lwrap' }, body, h('div', { class: 'ldock' }, fb, foot));
@@ -782,7 +792,8 @@ function renderMatch(q, body, foot, fb) {
     save();
   };
   const leftCol = h('div', { class: 'col' }, q.pairs.map((p) => {
-    const b = h('button', { type: 'button', class: 'opt greek', 'data-pid': DEBUG ? p.id : null, onclick: () => { if (b.disabled) return; unsel(lbtn); left = p.id; b.classList.add('sel'); playWord(p.w); tryPair(); } }, p.el);
+    const b = h('button', { type: 'button', class: 'opt greek', 'data-pid': DEBUG ? p.id : null, onclick: () => { if (b.disabled) return; unsel(lbtn); left = p.id; b.classList.add('sel'); playWord(p.w); tryPair(); } },
+    wordAvatar(p.w, 36), h("span", {}, p.el));
     lbtn.set(p.id, b); return b;
   }));
   const rightCol = h('div', { class: 'col' }, q.rightOrder.map((id) => {

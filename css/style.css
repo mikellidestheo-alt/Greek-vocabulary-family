@@ -242,6 +242,28 @@ select, .text { border: .15rem solid var(--line); background: #fbf8ff; border-ra
 .lbody.center { align-items: center; justify-content: center; text-align: center; }
 .lbody.intro { align-items: center; text-align: center; gap: .6rem; justify-content: center; }
 .qtitle { font-size: 1.6rem; line-height: 1.15; }
+.qhead { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.qmonster { flex: none; line-height: 0; }
+.qmonster .avatar { width: 5rem; height: 5rem; }
+.match .opt .avatar { flex: none; }
+.match .col:first-child .opt { gap: .6rem; padding: .5rem .6rem; justify-content: flex-start; }
+.match .col:first-child .opt span:not(.avatar) { flex: 1; text-align: center; }
+@media (max-height: 48rem) { .qmonster .avatar { width: 4.2rem; height: 4.2rem; } }
+@media (max-width: 30rem) {
+  .match .col:first-child .opt { font-size: 1.15rem; gap: .4rem; padding: .45rem .5rem; }
+  .match .col:first-child .opt span:not(.avatar) { text-align: center; line-height: 1.1; }
+}
+/* very short screens (small phones): squeeze so the whole keyboard and the Check button fit */
+@media (max-height: 42rem) {
+  .qmonster .avatar { width: 3.4rem; height: 3.4rem; }
+  .lbody { gap: .6rem; }
+  .qtitle { font-size: 1.35rem; }
+  .writebox { min-height: 3rem; font-size: 1.9rem; }
+  .caret { height: 1.6rem; }
+  .kbd { gap: .3rem; margin-top: .2rem; }
+  .key { height: 2.3rem; font-size: 1.2rem; }
+  .key.accent { font-size: .9rem; }
+}
 .row { display: flex; gap: .8rem; align-items: center; }
 .row.center { justify-content: center; }
 .row.wrap { flex-wrap: wrap; }
@@ -319,7 +341,7 @@ select, .text { border: .15rem solid var(--line); background: #fbf8ff; border-ra
 /* short landscape screens: word on the left, microphone on the right */
 @media (min-width: 44rem) and (max-height: 60rem) {
   .lbody.speakbody { display: grid; grid-template-columns: 1fr 1fr; column-gap: 2rem; align-content: center; align-items: center; }
-  .speakbody .skilltag, .speakbody .qtitle, .speakbody .speak-status { grid-column: 1 / -1; }
+  .speakbody .skilltag, .speakbody .qhead, .speakbody .speak-status { grid-column: 1 / -1; }
   .speakbody .speak-status { text-align: center; }
 }
 @media (max-height: 40rem) { .mic { width: 5rem; height: 5rem; font-size: 2.2rem; } .bigword { font-size: 2.2rem; } }
