@@ -54,9 +54,11 @@ function ears(spec, sh) {
   const top = sh.cy - sh.ry;
   switch (spec.shape) {
     case 'cat':
-      return `<path d="M22 ${top + 14} L27 ${top - 14} L46 ${top + 4}Z" fill="${c}" stroke="${edge}" stroke-width="1.5" stroke-linejoin="round"/>
-        <path d="M74 ${top + 14} L73 ${top - 14} L54 ${top + 4}Z" fill="${c}" stroke="${edge}" stroke-width="1.5" stroke-linejoin="round"/>
-        <path d="M28 ${top + 4} L29 ${top - 7} L38 ${top + 3}Z M72 ${top + 4} L71 ${top - 7} L62 ${top + 3}Z" fill="${inner}"/>`;
+      { // wide, flared, soft-tipped cat ears that grow out of the corners of the head (no inner patch)
+        const ec = spec.fur === 'tie' ? (spec.c3 || '#3fc98a') : c;
+        return `<path d="M24 ${top + 18} Q12 ${top - 2} 14 ${top - 13} Q15 ${top - 17} 20 ${top - 15} Q36 ${top - 8} 48 ${top + 4}Z" fill="${ec}" stroke="${edge}" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M76 ${top + 18} Q88 ${top - 2} 86 ${top - 13} Q85 ${top - 17} 80 ${top - 15} Q64 ${top - 8} 52 ${top + 4}Z" fill="${ec}" stroke="${edge}" stroke-width="1.5" stroke-linejoin="round"/>`;
+      }
     case 'bunny':
       return `<ellipse cx="37" cy="${top - 6}" rx="7.5" ry="19" transform="rotate(-10 37 ${top - 6})" fill="${c}" stroke="${edge}" stroke-width="1.5"/>
         <ellipse cx="63" cy="${top - 6}" rx="7.5" ry="19" transform="rotate(10 63 ${top - 6})" fill="${c}" stroke="${edge}" stroke-width="1.5"/>
@@ -75,7 +77,7 @@ function tieBands(spec) {
   return `<path d="${w(40)}" fill="${c2}"/><path d="${w(54)}" fill="${c3}"/><path d="${w(68)}" fill="${spec.c}"/><path d="${w(81)}" fill="${c2}"/>`;
 }
 
-function teethSvg(kind, my, mx0, mx1) {
+function teethSvg(kind, my, mx0, mx1, lower = true) {
   const t01 = (x) => (x - mx0) / (mx1 - mx0);
   const top = (x) => my + 8 * t01(x) * (1 - t01(x));
   const bottom = (x) => my + 44 * t01(x) * (1 - t01(x));
@@ -86,7 +88,7 @@ function teethSvg(kind, my, mx0, mx1) {
   else if (kind === 'fangs') s += `<path d="M38 ${top(38)} l3 9 l3 -9Z M56 ${top(56)} l3 9 l3 -9Z" fill="#fffdf4" stroke="#3a2150" stroke-width=".9" stroke-linejoin="round"/>` + tooth(48, 4, 4);
   else if (kind === 'gap') s += tooth(38, 4.6, 6) + tooth(43.5, 4.6, 7) + tooth(55, 4.6, 7) + tooth(60.5, 4.6, 5);
   else s += tooth(36, 4.6, 6) + tooth(41.5, 4.6, 9) + tooth(47, 4.6, 5) + tooth(52.5, 4.6, 9) + tooth(58, 4.6, 6);
-  if (kind !== 'fangs') s += tooth(44, 4.4, 5, bottom(44) - 5) + tooth(52, 4.4, 4, bottom(52) - 4);
+  if (lower && kind !== 'fangs') s += tooth(44, 4.4, 5, bottom(44) - 5) + tooth(52, 4.4, 4, bottom(52) - 4);
   return s;
 }
 
@@ -127,7 +129,7 @@ function face(spec, sh, rnd, opts = {}) {
   } else {
     s += `<path d="M${mx0} ${my} Q50 ${my + 4} ${mx1} ${my} Q50 ${my + 24} ${mx0} ${my}Z" fill="#43203f" stroke="#2a1235" stroke-width="1.4" stroke-linejoin="round"/>`;
     if (mouth === 'tongue') s += `<path d="M41 ${my + 6} Q40 ${my + 23} 50 ${my + 23} Q60 ${my + 23} 59 ${my + 6}Z" fill="#f78fb3" stroke="#c4577e" stroke-width="1.2"/><path d="M50 ${my + 9} V${my + 18}" stroke="#c4577e" stroke-width="1.2" stroke-linecap="round"/>`;
-    s += teethSvg(spec.teeth, my, mx0, mx1);
+    s += teethSvg(spec.teeth, my, mx0, mx1, mouth !== 'tongue'); // no lower teeth poking over a tongue
   }
   if (sad) s += `<path d="M${rx2 + 12} ${ey - 16} q-3 6 0 9 q3 -3 0 -9Z" fill="#6ec6ff" stroke="#2f86c9" stroke-width="1"/>`;
   return { svg: s, ey, lx, rx2, lr, rr, my, mx0, mx1 };
