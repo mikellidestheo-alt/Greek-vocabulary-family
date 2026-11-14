@@ -530,38 +530,32 @@ function renderQuestion(q) {
     const { ok, answer } = getAnswer();
     recordResult(q, ok);
     showFeedback(fb, foot, ok, answer, q);
+    if (ok && q.needsSpeak) addSpeechConfirm(q, foot);
   };
   checkBtn.addEventListener('click', finish);
   if ((q.listen || q.autoplay) && w) setTimeout(() => playWord(w), 250);
 }
 
-// ---- say it out loud ----
-function renderSpeak(q, body, foot, fb) {
-  const w = q.target;
+// ---- microphone check ----
+// Shared by the "Say it out loud!" question and by the "now say it" step that follows every other
+// Say-it task. On Android Chrome the browser listens and judges the word. If recognition is not
+// available the child records herself, hears herself next to the real word, and rates herself.
+function speechUI(w, { area, status, onResult, onBlocked }) {
   let tries = 0, finished = false;
-  const status = h('div', { class: 'speak-status', 'aria-live': 'polite' }, 'Listen first, then tap the microphone and say the word.');
-  const area = h('div', { class: 'speak-area' });
-  body.append(
-    h('div', { class: 'promptcard' },
-      h('div', { class: 'bigword' }, label(w)),
-      state.settings.translit ? h('div', { class: 'tr' }, w.tr) : null,
-      h('div', { class: 'row center' }, speakerBtn(w, { big: true }), speakerBtn(w, { slow: true, big: true }))),
-    area, status);
-  foot.replaceChildren(h('button', { class: 'btn ghost', type: 'button', onclick: skipQuestion }, 'Skip this one'));
-
-  const done = (ok) => {
+  const finish = (ok) => {
     if (finished) return;
     finished = true;
-    recordSpeak(q, ok);
-    showFeedback(fb, foot, ok, ok ? null : label(w), q, { skipRecord: true, soft: !ok });
+    const rate = area.querySelector('.speak-after');
+    if (rate) rate.hidden = true; // the self-rating buttons are done with
+    onResult(ok);
   };
   const blocked = () => {
     micBlocked = true;
     status.textContent = 'The microphone is blocked, so we’ll skip this one.';
-    setTimeout(skipQuestion, 1700);
+    onBlocked();
   };
 
-  // A: the browser listens and judges (Chrome, Android, recent Safari)
+  // A: the browser listens and judges
   const listenMode = () => {
     const mic = h('button', { class: 'mic', type: 'button', 'aria-label': 'Tap and say the word' }, '🎤');
     area.replaceChildren(mic);
@@ -570,10 +564,10 @@ function renderSpeak(q, body, foot, fb) {
       try {
         const alts = await listenOnce();
         mic.classList.remove('live');
-        if (judgeSpeech(alts, w)) { done(true); return; }
+        if (judgeSpeech(alts, w)) { finish(true); return; }
         tries++;
         status.textContent = alts[0] ? `I heard “${alts[0]}”. Try again!` : 'I didn’t catch that. Try again!';
-        if (tries >= 2) done(false);
+        if (tries >= 2) finish(false);
       } catch (err) {
         mic.classList.remove('live');
         if (err === 'denied') blocked();
@@ -582,9 +576,9 @@ function renderSpeak(q, body, foot, fb) {
     };
   };
 
-  // B: record yourself, then compare with the real word and rate yourself
+  // B: record yourself, compare with the real word, rate yourself
   const recordMode = () => {
-    if (!canRecord()) { status.textContent = 'Speaking practice isn’t available on this device.'; setTimeout(skipQuestion, 1700); return; }
+    if (!canRecord()) { status.textContent = 'Speaking practice isn’t available on this device.'; onBlocked(); return; }
     let mineUrl = null, recording = false;
     const playMine = (chain) => {
       if (!mineUrl) return;
@@ -599,8 +593,8 @@ function renderSpeak(q, body, foot, fb) {
         h('button', { class: 'mini big', type: 'button', onclick: () => playMine() }, '▶ Hear me'),
         h('button', { class: 'mini big', type: 'button', onclick: () => playWord(w) }, '🔊 Hear the word')),
       h('div', { class: 'row center wrap' },
-        h('button', { class: 'btn', type: 'button', onclick: () => done(true) }, '😄 I said it well!'),
-        h('button', { class: 'btn ghost', type: 'button', onclick: () => done(false) }, '🔁 More practice')));
+        h('button', { class: 'btn', type: 'button', onclick: () => finish(true) }, '😄 I said it well!'),
+        h('button', { class: 'btn ghost', type: 'button', onclick: () => finish(false) }, '🔁 More practice')));
     area.replaceChildren(mic, after);
     status.textContent = 'Tap the microphone, say the word, then tap again to stop.';
     mic.onclick = async () => {
@@ -624,6 +618,49 @@ function renderSpeak(q, body, foot, fb) {
   };
 
   if (canListen() && !srBroken) listenMode(); else recordMode();
+}
+
+// ---- say it out loud (a question of its own) ----
+function renderSpeak(q, body, foot, fb) {
+  const w = q.target;
+  const status = h('div', { class: 'speak-status', 'aria-live': 'polite' }, 'Listen first, then tap the microphone and say the word.');
+  const area = h('div', { class: 'speak-area' });
+  body.append(
+    h('div', { class: 'promptcard' },
+      h('div', { class: 'bigword' }, label(w)),
+      state.settings.translit ? h('div', { class: 'tr' }, w.tr) : null,
+      h('div', { class: 'row center' }, speakerBtn(w, { big: true }), speakerBtn(w, { slow: true, big: true }))),
+    area, status);
+  foot.replaceChildren(h('button', { class: 'btn ghost', type: 'button', onclick: skipQuestion }, 'Skip this one'));
+  speechUI(w, {
+    area, status,
+    onResult: (ok) => {
+      recordSpeak(q, ok);
+      showFeedback(fb, foot, ok, ok ? null : label(w), q, { skipRecord: true, soft: !ok });
+    },
+    onBlocked: () => setTimeout(skipQuestion, 1700),
+  });
+}
+
+// ---- "now say it" ----
+// After a correct answer to any other Say-it task, Continue stays locked until she has said the word
+// out loud (heard by the microphone, or recorded and self-checked). It never costs a heart.
+function addSpeechConfirm(q, foot) {
+  const w = q.say;
+  const go = foot.querySelector('.btn');
+  if (!go || !w) return;
+  go.disabled = true;
+  const status = h('div', { class: 'speak-status', 'aria-live': 'polite' }, `Now say “${label(w)}” out loud!`);
+  const area = h('div', { class: 'speak-area compact' });
+  foot.prepend(h('div', { class: 'speak-confirm' }, area, status));
+  const unlock = (msg) => { status.textContent = msg; go.disabled = false; go.focus({ preventScroll: true }); };
+  speechUI(w, {
+    area, status,
+    onResult: (ok) => {
+      if (ok) { L.xp += 5; unlock('You said it! 🎉'); } else unlock('Nice try! You’ll get another go at this one.');
+    },
+    onBlocked: () => unlock('No microphone, so we’ll carry on.'),
+  });
 }
 
 // ---- matching pairs ----
@@ -739,7 +776,7 @@ function onKey(e) {
   if (lessonEl.hidden || !L) return;
   const wrap = lessonEl.querySelector('.lwrap');
   if (e.key === 'Enter') {
-    const go = lessonEl.querySelector('.lfoot .btn:not([disabled]):not(.ghost)');
+    const go = lessonEl.querySelector('.lfoot > .btn:not([disabled]):not(.ghost)');
     if (go && document.activeElement !== go) { go.click(); e.preventDefault(); }
   } else if (/^[1-4]$/.test(e.key) && wrap && wrap._keys) wrap._keys(Number(e.key) - 1);
 }

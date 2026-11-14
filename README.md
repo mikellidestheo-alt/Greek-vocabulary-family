@@ -27,16 +27,19 @@ Progress for each skill is shown on the **Me** page.
 | --- | --- |
 | 🌍 **Translate** | Greek → English, English → Greek, picture questions, ο / η / το, male ↔ female partner, matching pairs |
 | 🔤 **Spell** | build the word from letter tiles (from English or from sound), pick the correct spelling, find the missing letter |
-| 🗣️ **Say it** | hear it and tap the monster, pick the right pronunciation, which syllable is loudest, **say it out loud** |
+| 🗣️ **Say it** | hear it and tap the monster, pick the right pronunciation, which syllable is loudest, **say it out loud**. Every Say-it task ends with her saying the word, and Continue stays locked until she has |
 | 💬 **Sentences** | fill the missing word, translate a sentence, listen and understand, build a Greek sentence from word tiles |
 
 There are 85 sentences. Every word gets "This is my…", "Where is my…?" and "My … is here."
 with the right Greek gender (Αυτός / Αυτή / Αυτό …), plus some hand-written action sentences.
 
-**Speaking practice** listens through the microphone where the browser supports it
-(Chrome, Android, recent Safari) and checks the word. Otherwise she records herself,
-hears herself next to the real word, and rates herself. It never costs a heart and can be skipped
-or switched off (Me → Sound).
+**Speaking** is part of every Say-it task. After a correct answer she must say the word out loud
+before Continue unlocks. On an Android tablet with Chrome the browser listens through the
+microphone and checks the word, and it needs an internet connection because Chrome sends the audio to
+Google to be recognised. She gets two tries, and the check ignores accents and small slips. If recognition
+isn't available she records herself, hears herself next to the real word, and rates herself. If the
+microphone is blocked, the app carries on without it. Speaking never costs a heart. A grown-up can switch
+it off under Me → Sound, and then Say-it tasks are tap-only.
 
 ### Rewards
 

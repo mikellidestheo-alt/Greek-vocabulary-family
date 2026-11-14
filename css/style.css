@@ -207,6 +207,7 @@ select, .text { border: .15rem solid var(--line); background: #fbf8ff; border-ra
 .btn:disabled { background: #efe6fb; color: #b9a9da; text-shadow: none; box-shadow: 0 .34rem 0 #ddd0f3; }
 .btn.good { background: linear-gradient(180deg, #7aeed0, #2fcfa8); box-shadow: inset 0 .2rem .25rem rgba(255, 255, 255, .5), 0 .34rem 0 #1ba88a, 0 .8rem 1.1rem rgba(47, 207, 168, .28); }
 .btn.good:active { box-shadow: 0 .08rem 0 #1ba88a; }
+.btn.good:disabled, .btn.bad:disabled { background: #efe6fb; color: #a08fc8; box-shadow: 0 .34rem 0 #ddd0f3; }
 .btn.ghost { background: #fff; color: var(--purple); text-shadow: none; box-shadow: 0 .34rem 0 var(--line), inset 0 0 0 .15rem var(--line); }
 .btn.danger, .btn.bad { background: linear-gradient(180deg, #ff9aa9, #ff6b81); box-shadow: inset 0 .2rem .25rem rgba(255, 255, 255, .4), 0 .34rem 0 #d84a62, 0 .8rem 1.1rem rgba(255, 107, 129, .25); }
 .mini { border: .14rem solid var(--line); background: #fff; border-radius: 999px; padding: .5rem .9rem; font-weight: 900; box-shadow: 0 .18rem 0 var(--line); }
@@ -307,6 +308,13 @@ select, .text { border: .15rem solid var(--line); background: #fbf8ff; border-ra
 .speak-after { display: grid; gap: .8rem; justify-items: center; }
 .speak-after .btn { width: auto; min-width: 11rem; }
 .speak-status { text-align: center; font-weight: 800; color: var(--muted); min-height: 1.5rem; }
+/* "now say it" step inside the answer bar */
+.speak-confirm { display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap; padding: .2rem 0 .3rem; }
+.speak-confirm .speak-status { text-align: left; color: inherit; flex: 1 1 12rem; font-size: 1.1rem; }
+.speak-area.compact { margin: 0; gap: .6rem; }
+.speak-area.compact .mic { width: 4.6rem; height: 4.6rem; font-size: 2rem; }
+.speak-area.compact .speak-after .btn { min-width: 9rem; padding: .6rem 1rem; font-size: .95rem; }
+.speak-area.compact .mini.big { font-size: .95rem; padding: .5rem .9rem; }
 
 /* short landscape screens: word on the left, microphone on the right */
 @media (min-width: 44rem) and (max-height: 60rem) {

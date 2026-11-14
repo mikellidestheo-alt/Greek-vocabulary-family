@@ -277,7 +277,10 @@ function makeFor(skill, w, lessonNo, last, caps) {
   if (fresh.length) pool = fresh;
   if (!pool.length) return null;
   const type = pool[rnd(pool.length)];
-  return { id: ++uid, type, skill: TYPE_SKILL[type], wid: w.id, ...makers[type](w) };
+  const q = { id: ++uid, type, skill: TYPE_SKILL[type], wid: w.id, ...makers[type](w) };
+  // every Say-it task ends with saying the word out loud (the "speak" question already is that)
+  if (q.skill === 'pronunciation' && type !== 'speak' && caps.speak) q.needsSpeak = true;
+  return q;
 }
 
 // A shuffle where no item stays in its original position, so the two columns
