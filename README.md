@@ -76,7 +76,8 @@ Xiaomi stylus on Android and an Apple Pencil on iPad, because it uses the standa
 seen the pad ignores fingers, so a resting palm doesn't draw. There is Undo and Start again. How it is marked
 depends on what the device can do:
 
-- **Brand-new words** show the word as faint letters to **trace**; the app measures how well the pen followed them.
+- **Brand-new words** have a **👀 Show the word** button. The word is hidden to begin with; if she wants help she
+  can show it as faint letters to **trace**, and the app measures how well the pen followed them.
 - **If the browser can read Greek handwriting** (Chrome's Handwriting Recognition API, where a device offers it)
   the writing is read and marked exactly like typing, little word included.
 - **Otherwise** (iPad Safari has no handwriting recognition, and most Android devices don't offer Greek) she compares

@@ -626,11 +626,17 @@ function renderQuestion(q) {
     const typeView = h('div', { class: 'typeview' }, box, greekKeyboard({ onChar: addChar, onBack: backspace, onAccent: accent }));
     // ---- the handwriting pad (stylus or finger) ----
     const pad = createPad({ onChange: () => { if (mode === 'write' && !locked) checkBtn.disabled = !pad.hasInk(); } });
-    if (q.scaffold) pad.setModel(q.answer, 'trace'); // brand-new words: trace the faint letters
+    let helper = false; // brand-new words: she can choose to show the word as faint letters and trace it
     const padView = h('div', { class: 'padview' },
-      h('p', { class: 'padhint' }, q.scaffold ? '✍️ Trace the faint letters with your pen.' : '✍️ Write it with your pen. Don’t forget the little word!'),
+      h('p', { class: 'padhint' }, q.scaffold ? '✍️ Write it with your pen. Need help? Tap “Show the word” and trace it.' : '✍️ Write it with your pen. Don’t forget the little word!'),
       pad.el,
       h('div', { class: 'padtools' },
+        q.scaffold ? h('button', { type: 'button', class: 'mini', 'data-helper': '', onclick: (e) => {
+          if (locked) return;
+          sfx('tap'); helper = !helper;
+          pad.setModel(helper ? q.answer : null, 'trace');
+          e.currentTarget.textContent = helper ? '🙈 Hide the word' : '👀 Show the word';
+        } }, '👀 Show the word') : null,
         h('button', { type: 'button', class: 'mini', onclick: () => { sfx('tap'); pad.undo(); } }, '↶ Undo'),
         h('button', { type: 'button', class: 'mini', onclick: () => { sfx('tap'); pad.clear(); } }, '🗑 Start again')));
     const seg = (m, text) => h('button', { type: 'button', class: 'seg', 'data-mode': m, onclick: () => setMode(m) }, text);
@@ -703,7 +709,7 @@ function renderQuestion(q) {
         if (r.ok) pad.el.classList.add('right'); else { pad.el.classList.add('close'); pad.setModel(q.answer, 'show'); }
         return { ...r, answer: q.answer };
       }
-      if (q.scaffold) { // tracing
+      if (q.scaffold && helper) { // she traced the faint word
         const { W, H } = pad.size();
         const sc = traceScore(strokes, q.answer, W, H);
         if (sc.coverage >= 0.55 && sc.stray <= 0.4) { pad.el.classList.add('right'); return { ok: true, answer: q.answer }; }
