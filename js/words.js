@@ -100,22 +100,22 @@ export const WORDS = [
 ];
 
 export const UNITS = [
-  { id: 'parents', title: 'Mum & Dad', color: '#7a4fe0', icon: 'mama',
+  { id: 'parents', title: 'Mum & Dad', color: '#8a6bff', icon: 'mama',
     words: ['mama', 'mpampas', 'mitera', 'pateras', 'goneis'],
     note: 'At home you say μαμά and μπαμπάς. μητέρα and πατέρας are the polite, formal words.' },
-  { id: 'siblings', title: 'Brothers & Sisters', color: '#17a673', icon: 'aderfi',
+  { id: 'siblings', title: 'Brothers & Sisters', color: '#16b8a2', icon: 'aderfi',
     words: ['aderfos', 'aderfi', 'aderfia', 'gios', 'kori', 'paidi'],
     note: 'Listen for the Greek δ: it sounds like the “th” in “the”.' },
-  { id: 'grandparents', title: 'Grandparents', color: '#d6479c', icon: 'giagia',
+  { id: 'grandparents', title: 'Grandparents', color: '#f2599f', icon: 'giagia',
     words: ['pappous', 'giagia', 'egonos', 'egoni'],
     note: 'Ο παππούς and η γιαγιά are the grandparents. Their grandchildren are οι εγγονοί.' },
-  { id: 'auntsuncles', title: 'Aunts & Uncles', color: '#ef7d1a', icon: 'theios',
+  { id: 'auntsuncles', title: 'Aunts & Uncles', color: '#ff8a2b', icon: 'theios',
     words: ['theios', 'theia', 'anipsios', 'anipsia'],
     note: 'Great-uncles and great-aunts are simply θείος and θεία. There is no προ- for them!' },
-  { id: 'cousins', title: 'Cousins', color: '#1b9bd1', icon: 'xaderfi',
+  { id: 'cousins', title: 'Cousins', color: '#2fa8ee', icon: 'xaderfi',
     words: ['xaderfos', 'xaderfi', 'xaderfia'],
     note: 'Boys and girls together are τα ξαδέρφια, a neuter plural.' },
-  { id: 'great', title: 'Great-grandparents', color: '#c79a10', icon: 'propappous',
+  { id: 'great', title: 'Great-grandparents', color: '#ffc83d', ink: '#4d3300', icon: 'propappous',
     words: ['pro', 'propappous', 'progiagia'],
     note: 'The prefix προ- means “great”, but only grandparents get it: προ + γιαγιά = προγιαγιά.' },
 ];

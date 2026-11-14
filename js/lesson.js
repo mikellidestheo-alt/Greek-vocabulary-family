@@ -132,11 +132,11 @@ const makers = {
   }),
   'en-el': (w) => ({
     kind: 'choice', title: 'How do you say this in Greek?', prompt: w.en, promptClass: 'en', silent: true, say: w, optClass: 'greek',
-    options: shuffle([opt(w.id, label(w), true), ...distractors(w, 3).map((d) => opt(d.id, label(d), false))]),
+    options: shuffle([opt(w.id, label(w), true, { say: w }), ...distractors(w, 3).map((d) => opt(d.id, label(d), false, { say: d }))]),
   }),
   'pic-el': (w) => ({
     kind: 'choice', title: 'Who is this?', pic: w, say: w, optClass: 'greek',
-    options: shuffle([opt(w.id, label(w), true), ...distractors(w, 3, { ok: (x) => x.picEx }).map((d) => opt(d.id, label(d), false))]),
+    options: shuffle([opt(w.id, label(w), true, { say: w }), ...distractors(w, 3, { ok: (x) => x.picEx }).map((d) => opt(d.id, label(d), false, { say: d }))]),
   }),
   article: (w) => ({
     kind: 'choice', title: 'Which little word goes with it?', prompt: w.el, promptClass: 'greek', sub: w.en, say: w,
@@ -149,7 +149,7 @@ const makers = {
     return {
       kind: 'choice', title: `Which word is the ${female ? 'female' : 'male'} version?`, prompt: label(w), promptClass: 'greek', sub: w.en,
       say: w, sayAfter: p, optClass: 'greek',
-      options: shuffle([opt(p.id, label(p), true), ...distractors(p, 3, { ok: (x) => x.art === p.art && x.id !== w.id && !x.plural, preferUnit: false }).map((d) => opt(d.id, label(d), false))]),
+      options: shuffle([opt(p.id, label(p), true, { say: p }), ...distractors(p, 3, { ok: (x) => x.art === p.art && x.id !== w.id && !x.plural, preferUnit: false }).map((d) => opt(d.id, label(d), false, { say: d }))]),
     };
   },
 
@@ -280,12 +280,21 @@ function makeFor(skill, w, lessonNo, last, caps) {
   return { id: ++uid, type, skill: TYPE_SKILL[type], wid: w.id, ...makers[type](w) };
 }
 
+// A shuffle where no item stays in its original position, so the two columns
+// of a matching question never line up by accident.
+function jumbled(ids) {
+  if (ids.length < 2) return ids;
+  let r;
+  do { r = shuffle(ids); } while (r.some((id, i) => id === ids[i]));
+  return r;
+}
+
 function matchQuestion(words) {
-  const pick = sample(words, Math.min(4, words.length));
+  const pick = sample(words, Math.min(4, words.length)); // random order for the Greek column
   return {
     id: ++uid, type: 'match', skill: 'translation', kind: 'match', wid: pick[0].id, title: 'Tap the matching pairs',
     pairs: pick.map((w) => ({ id: w.id, el: label(w), en: w.en, w })),
-    rightOrder: shuffle(pick.map((w) => w.id)),
+    rightOrder: jumbled(pick.map((w) => w.id)),
   };
 }
 

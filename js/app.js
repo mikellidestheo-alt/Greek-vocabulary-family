@@ -147,7 +147,7 @@ function viewLearn() {
   const unlocked = (i) => state.settings.unlockAll || i <= completed;
   UNITS.forEach((u, ui) => {
     const done = unitDone(u.id);
-    root.append(h('section', { class: 'unit', style: `--uc:${u.color}` },
+    root.append(h('section', { class: 'unit', style: `--uc:${u.color}; --on:${u.ink || '#fff'}` },
       h('div', { class: 'banner' },
         wordAvatar(word(u.icon), 60),
         h('div', {},
@@ -173,7 +173,7 @@ function viewLearn() {
   });
 
   const allDone = completed >= UNITS.length * LESSONS_PER_UNIT;
-  root.append(h('section', { class: 'unit final', style: '--uc:#c9921a' },
+  root.append(h('section', { class: 'unit final', style: '--uc:#ffc83d; --on:#4d3300' },
     h('div', { class: 'banner' }, h('span', { class: 'trophy' }, '🏆'),
       h('div', {}, h('div', { class: 'kicker' }, 'Final challenge'), h('h2', {}, 'Whole family mix'),
         h('div', { class: 'small' }, 'Every word, tricky ones first'))),
@@ -486,7 +486,9 @@ function renderQuestion(q) {
       q.picOpts ? wordAvatar(o.pic, 112) : null,
       q.picOpts || q.gridClass ? null : h('span', { class: 'k' }, String(idx + 1)),
       q.picOpts ? null : h('span', { class: 'lbl' }, q.optClass ? o.label : cap(o.label)));
-      els.set(o.key, b); grid.append(b);
+      els.set(o.key, b);
+      // every Greek option gets its own speaker, so each word can be heard before choosing
+      grid.append(o.say ? h('div', { class: 'optwrap' }, b, speakerBtn(o.say)) : b);
     });
     body.append(grid);
     getAnswer = () => {
@@ -715,7 +717,7 @@ function showFeedback(fb, foot, ok, answer, q, { skipRecord = false, soft = fals
   const showWord = q.sayAfter || q.say || word(q.wid);
   fb.className = `fb show ${ok ? 'good' : soft ? 'soft' : 'bad'}`;
   fb.replaceChildren(
-    mascot('mini', ok || soft ? 'happy' : 'sad'),
+    mascot('sm', ok || soft ? 'happy' : 'sad'),
     h('div', {},
       h('div', { class: 'fbt' }, `${elTxt} `, h('span', { class: 'fbe' }, enTxt)),
       !ok && answer ? h('div', { class: 'fba' }, soft ? 'Say it with me: ' : 'Correct answer: ', h('b', {}, answer)) : null,
@@ -728,7 +730,7 @@ function showFeedback(fb, foot, ok, answer, q, { skipRecord = false, soft = fals
   if ((ok || soft) && q.kind !== 'match' && !q.listen && !q.autoplay && showWord) setTimeout(() => playWord(showWord), 150);
   const bar = lessonEl.querySelector('.bar i');
   if (bar) bar.style.width = `${Math.round((L.done / L.total) * 100)}%`;
-  const go = h('button', { class: `btn ${ok || soft ? '' : 'bad'}`, type: 'button', onclick: () => { L.i++; nextQuestion(); } }, 'Continue');
+  const go = h('button', { class: `btn ${ok ? 'good' : soft ? '' : 'bad'}`, type: 'button', onclick: () => { L.i++; nextQuestion(); } }, 'Continue');
   foot.replaceChildren(go);
   setTimeout(() => go.focus({ preventScroll: true }), 0);
 }
