@@ -155,6 +155,62 @@ export function stopRecording() {
   });
 }
 
+// ---------- speaking practice ----------
+const SR = () => window.SpeechRecognition || window.webkitSpeechRecognition;
+export const canListen = () => !!SR();
+
+// Listens once for a Greek word. Resolves with a list of guesses ([] if nothing was heard).
+// Rejects with 'denied' (microphone blocked) or 'unavailable' (recognition does not work here).
+export function listenOnce({ ms = 7000 } = {}) {
+  return new Promise((resolve, reject) => {
+    let r;
+    try { r = new (SR())(); } catch { reject('unavailable'); return; }
+    r.lang = 'el-GR';
+    r.maxAlternatives = 5;
+    r.interimResults = false;
+    let done = false;
+    const finish = (alts, err) => {
+      if (done) return;
+      done = true; clearTimeout(timer);
+      try { r.abort(); } catch { /* ignore */ }
+      if (err) reject(err); else resolve(alts);
+    };
+    r.onresult = (e) => {
+      const alts = [];
+      for (const res of e.results) for (let i = 0; i < res.length; i++) alts.push(res[i].transcript);
+      finish(alts);
+    };
+    r.onerror = (e) => {
+      if (e.error === 'not-allowed') finish([], 'denied');
+      else if (e.error === 'service-not-allowed' || e.error === 'network' || e.error === 'language-not-supported') finish([], 'unavailable');
+      else finish([]);
+    };
+    r.onnomatch = () => finish([]);
+    r.onend = () => finish([]);
+    const timer = setTimeout(() => finish([]), ms);
+    try { r.start(); } catch { finish([], 'unavailable'); }
+  });
+}
+
+const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ς/g, 'σ').replace(/[^\p{L}]/gu, '');
+function lev(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+
+// Kind to a child: ignores accents, final-sigma and one or two slips.
+export function judgeSpeech(alts, w) {
+  const target = norm(w.el);
+  if (!target) return false;
+  const tol = target.length <= 3 ? 0 : target.length <= 7 ? 1 : 2;
+  return alts.some((a) => [a, ...a.split(/\s+/)].some((tok) => {
+    const t = norm(tok);
+    return t && (t === target || t.includes(target) || lev(t, target) <= tol);
+  }));
+}
+
 // ---------- tiny sound effects (no files needed) ----------
 let ctx = null;
 export function sfx(kind) {

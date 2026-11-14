@@ -1,5 +1,5 @@
 // =====================================================================
-//  WORD DATA  -  edit this file to add or change words.
+//  WORD DATA  -  edit this file to add or change words and sentences.
 //
 //  Each word needs:
 //    id    unique, lowercase latin letters (also the audio file name:
@@ -12,29 +12,28 @@
 //    pair  (optional) id of the male/female counterpart
 //    grp   (optional) words in the same group mean nearly the same thing,
 //          so they are never offered as wrong answers for each other
-//    pic   what the little cartoon looks like (see avatars.js)
-//    picEx true if the cartoon is distinctive enough for picture questions
+//    poss  (optional) spelling when followed by μου, if the accent moves
+//          (ξάδερφος -> ξάδερφός μου)
+//    pic   what the little monster looks like (see avatars.js)
+//    picEx true if the monster is distinctive enough for picture questions
 //
 //  Each unit lists the word ids it teaches, in order.
+//
+//  Sentences are made automatically for every word (see sentencesFor) and
+//  you can add hand-written ones in HAND_SENTENCES below.
 // =====================================================================
 
-const DARK = '#3b2a20';
-const BROWN = '#8a5a35';
-const GREY = '#c4c4d0';
-const WHITE = '#f3f3f8';
-const BLOND = '#d9a441';
-
-// ---- cartoon recipes ------------------------------------------------
-const MUM = { g: 'f', a: 'adult', hair: 'long', hc: DARK, shirt: '#ef6f6c', ear: true };
-const DAD = { g: 'm', a: 'adult', hair: 'short', hc: DARK, shirt: '#3b82c4', stache: true };
-const PAPPOUS = { g: 'm', a: 'elder', hair: 'sides', hc: WHITE, shirt: '#7a8b6f', stache: true, glasses: true, cane: true };
-const YIAYIA = { g: 'f', a: 'elder', hair: 'bun', hc: GREY, shirt: '#9b6bb5', glasses: true };
-const UNCLE = { g: 'm', a: 'adult', hair: 'short', hc: BROWN, shirt: '#f08c3c', beard: true };
-const AUNT = { g: 'f', a: 'adult', hair: 'wavy', hc: BROWN, shirt: '#2fa8a0', ear: true };
-const BOY = { g: 'm', a: 'child', hair: 'short', hc: DARK, shirt: '#58b368' };
-const GIRL = { g: 'f', a: 'child', hair: 'pony', hc: DARK, shirt: '#ec7fb0' };
-const BOY_CAP = { g: 'm', a: 'child', hair: 'cap', hc: DARK, shirt: '#e0b030', cap: '#d94f4f' };
-const GIRL_BAND = { g: 'f', a: 'child', hair: 'band', hc: BLOND, shirt: '#8e7be0', band: '#f4c542' };
+// ---- monster recipes ------------------------------------------------
+const MUM = { shape: 'cat', fur: 'fuzzy', c: '#ef6fae', ec: '#7ed321', mouth: 'tongue', teeth: 'crooked', acc: ['bow', 'lashes'] };
+const DAD = { shape: 'blob', fur: 'plush', c: '#4a90e2', ec: '#f5d142', mouth: 'open', teeth: 'buck', acc: ['stache', 'tie'], tieC: '#e2554f' };
+const PAPPOUS = { shape: 'round', fur: 'fuzzy', c: '#cfc9dc', ec: '#8dd0e8', mouth: 'open', teeth: 'gap', acc: ['glasses', 'brows', 'stache', 'cane'], age: 'elder' };
+const YIAYIA = { shape: 'round', fur: 'plush', c: '#b78be6', ec: '#7ed321', mouth: 'open', teeth: 'gap', acc: ['glasses', 'bun', 'scarf'], age: 'elder', scarfC: '#f5a623' };
+const UNCLE = { shape: 'tall', fur: 'tie', c: '#f08c3c', c2: '#e0558f', c3: '#f5d04a', ec: '#7ed321', mouth: 'open', teeth: 'crooked', acc: ['beard', 'cap'], capC: '#2d7dd2' };
+const AUNT = { shape: 'bunny', fur: 'split', c: '#caa6f2', c2: '#9b2c63', ec: '#2fb36d', mouth: 'open', teeth: 'crooked', acc: ['earrings', 'lashes'] };
+const BOY = { shape: 'horn', fur: 'fuzzy', c: '#43b86a', ec: '#f5d142', mouth: 'tongue', teeth: 'fangs', acc: ['tuft'], age: 'child' };
+const GIRL = { shape: 'blob', fur: 'plush', c: '#ff9cc8', ec: '#5fb7f0', mouth: 'open', teeth: 'buck', acc: ['pigtails'], age: 'child' };
+const BOY_CAP = { shape: 'cat', fur: 'fuzzy', c: '#f2b630', ec: '#7ed321', mouth: 'tongue', teeth: 'crooked', acc: ['cap'], age: 'child', capC: '#d94f4f' };
+const GIRL_BAND = { shape: 'bunny', fur: 'plush', c: '#8e7be0', ec: '#f5d142', mouth: 'open', teeth: 'gap', acc: ['bow'], age: 'child' };
 
 export const WORDS = [
   // ---------------- Mum & Dad ----------------
@@ -75,25 +74,25 @@ export const WORDS = [
 
   // ---------------- Aunts & Uncles ----------------
   { id: 'theios', el: 'θείος', art: 'ο', tr: 'THEE-os', en: 'uncle', pair: 'theia',
-    hint: 'Greeks also call close older family friends “θείος”.', pic: UNCLE, picEx: true },
+    hint: 'Also used for great-uncles and for close older family friends.', pic: UNCLE, picEx: true },
   { id: 'theia', el: 'θεία', art: 'η', tr: 'THEE-a', en: 'aunt', pair: 'theios',
-    pic: AUNT, picEx: true },
+    hint: 'Also used for great-aunts. There is no προ- for aunts and uncles!', pic: AUNT, picEx: true },
   { id: 'anipsios', el: 'ανιψιός', art: 'ο', tr: 'a-nip-SYOS', en: 'nephew', pair: 'anipsia',
     hint: 'Your brother’s or sister’s son.', pic: { figs: [UNCLE, BOY] } },
   { id: 'anipsia', el: 'ανιψιά', art: 'η', tr: 'a-nip-SYA', en: 'niece', pair: 'anipsios',
     hint: 'Your brother’s or sister’s daughter.', pic: { figs: [AUNT, GIRL] } },
 
   // ---------------- Cousins ----------------
-  { id: 'xaderfos', el: 'ξάδερφος', art: 'ο', tr: 'KSA-ther-fos', en: 'male cousin', pair: 'xaderfi',
-    hint: 'Also written ξάδελφος. Starts with “ks”.', pic: BOY_CAP },
+  { id: 'xaderfos', el: 'ξάδερφος', poss: 'ξάδερφός', art: 'ο', tr: 'KSA-ther-fos', en: 'male cousin', pair: 'xaderfi',
+    hint: 'Also written ξάδελφος. Starts with “ks”. Before μου the accent moves: ο ξάδερφός μου.', pic: BOY_CAP },
   { id: 'xaderfi', el: 'ξαδέρφη', art: 'η', tr: 'ksa-THER-fi', en: 'female cousin', pair: 'xaderfos',
     hint: 'Also written ξαδέλφη.', pic: GIRL_BAND },
   { id: 'xaderfia', el: 'ξαδέρφια', art: 'τα', tr: 'ksa-THER-fia', en: 'cousins', plural: true,
     hint: 'Cousins, boys and girls together.', pic: { figs: [BOY_CAP, GIRL_BAND] } },
 
-  // ---------------- Great-! ----------------
+  // ---------------- Great-grandparents ----------------
   { id: 'pro', el: 'προ-', art: '', tr: 'pro', en: 'great- (prefix)', say: 'προ',
-    hint: 'Put προ- in front: προ + παππούς = προπάππους.', pic: { figs: [PAPPOUS], badge: 'προ-' } },
+    hint: 'Only for grandparents! προ + παππούς = προπάππους.', pic: { figs: [PAPPOUS], badge: 'προ-' } },
   { id: 'propappous', el: 'προπάππους', art: 'ο', tr: 'pro-PA-pus', en: 'great-grandfather', pair: 'progiagia',
     hint: 'Grandfather + προ-.', pic: { figs: [PAPPOUS], badge: 'προ-' }, picEx: true },
   { id: 'progiagia', el: 'προγιαγιά', art: 'η', tr: 'pro-ya-YA', en: 'great-grandmother', pair: 'propappous',
@@ -101,24 +100,24 @@ export const WORDS = [
 ];
 
 export const UNITS = [
-  { id: 'parents', title: 'Mum & Dad', color: '#1f78d1', icon: 'mama',
+  { id: 'parents', title: 'Mum & Dad', color: '#7a4fe0', icon: 'mama',
     words: ['mama', 'mpampas', 'mitera', 'pateras', 'goneis'],
     note: 'At home you say μαμά and μπαμπάς. μητέρα and πατέρας are the polite, formal words.' },
-  { id: 'siblings', title: 'Brothers & Sisters', color: '#2fa36b', icon: 'aderfi',
+  { id: 'siblings', title: 'Brothers & Sisters', color: '#17a673', icon: 'aderfi',
     words: ['aderfos', 'aderfi', 'aderfia', 'gios', 'kori', 'paidi'],
     note: 'Listen for the Greek δ: it sounds like the “th” in “the”.' },
-  { id: 'grandparents', title: 'Grandparents', color: '#8a5bd1', icon: 'giagia',
+  { id: 'grandparents', title: 'Grandparents', color: '#d6479c', icon: 'giagia',
     words: ['pappous', 'giagia', 'egonos', 'egoni'],
     note: 'Ο παππούς and η γιαγιά are the grandparents. Their grandchildren are οι εγγονοί.' },
-  { id: 'auntsuncles', title: 'Aunts & Uncles', color: '#ef8a2c', icon: 'theios',
+  { id: 'auntsuncles', title: 'Aunts & Uncles', color: '#ef7d1a', icon: 'theios',
     words: ['theios', 'theia', 'anipsios', 'anipsia'],
-    note: 'Great-uncle and great-aunt: most families just say θείος and θεία. Ask Yiayia if your family has its own special word!' },
-  { id: 'cousins', title: 'Cousins', color: '#e0558f', icon: 'xaderfi',
+    note: 'Great-uncles and great-aunts are simply θείος and θεία. There is no προ- for them!' },
+  { id: 'cousins', title: 'Cousins', color: '#1b9bd1', icon: 'xaderfi',
     words: ['xaderfos', 'xaderfi', 'xaderfia'],
     note: 'Boys and girls together are τα ξαδέρφια, a neuter plural.' },
-  { id: 'great', title: 'Great-!', color: '#d9a21b', icon: 'propappous',
+  { id: 'great', title: 'Great-grandparents', color: '#c79a10', icon: 'propappous',
     words: ['pro', 'propappous', 'progiagia'],
-    note: 'The prefix προ- means “great”. Stick it in front: προ + γιαγιά = προγιαγιά.' },
+    note: 'The prefix προ- means “great”, but only grandparents get it: προ + γιαγιά = προγιαγιά.' },
 ];
 
 export const LESSONS_PER_UNIT = 3;
@@ -127,3 +126,47 @@ const byId = new Map(WORDS.map((w) => [w.id, w]));
 export const word = (id) => byId.get(id);
 export const unitOf = (wid) => UNITS.find((u) => u.words.includes(wid));
 export const label = (w) => (w.art ? `${w.art} ${w.el}` : w.el);
+
+// ---------------- sentences ----------------
+// Extra hand-written sentences. `blank` is the word that gets hidden in the
+// fill-in-the-blank game; `form` is how that word is spelled in the sentence.
+const HAND_SENTENCES = [
+  { blank: 'mama', el: 'Η μαμά μου χαμογελάει.', tr: 'ee ma-MA moo ha-mo-ye-LA-ee', en: 'My mum is smiling.' },
+  { blank: 'mpampas', el: 'Ο μπαμπάς μου είναι στο σπίτι.', tr: 'o ba-BAS moo EE-ne sto SPEE-ti', en: 'My dad is at home.' },
+  { blank: 'giagia', el: 'Η γιαγιά μου μαγειρεύει.', tr: 'ee ya-YA moo ma-yi-RE-vi', en: 'My grandma is cooking.' },
+  { blank: 'pappous', el: 'Ο παππούς μου διαβάζει.', tr: 'o pa-POOS moo thya-VA-zi', en: 'My grandpa is reading.' },
+  { blank: 'theia', el: 'Η θεία μου έρχεται σήμερα.', tr: 'ee THEE-a moo ER-he-te SEE-me-ra', en: 'My aunt is coming today.' },
+  { blank: 'theios', el: 'Ο θείος μου παίζει κιθάρα.', tr: 'o THEE-os moo PE-zi ki-THA-ra', en: 'My uncle plays the guitar.' },
+  { blank: 'aderfos', el: 'Ο αδερφός μου τρέχει.', tr: 'o a-ther-FOS moo TRE-hi', en: 'My brother is running.' },
+  { blank: 'aderfi', el: 'Η αδερφή μου τραγουδάει.', tr: 'ee a-ther-FEE moo tra-ghoo-THA-ee', en: 'My sister is singing.' },
+  { blank: 'xaderfos', form: 'ξάδερφός', el: 'Ο ξάδερφός μου παίζει.', tr: 'o KSA-ther-fos moo PE-zi', en: 'My cousin is playing.' },
+  { blank: 'xaderfi', el: 'Η ξαδέρφη μου χορεύει.', tr: 'ee ksa-THER-fi moo ho-RE-vi', en: 'My female cousin is dancing.' },
+  { blank: 'gios', el: 'Ο γιος μου κοιμάται.', tr: 'o YOS moo ki-MA-te', en: 'My son is sleeping.' },
+  { blank: 'kori', el: 'Η κόρη μου ζωγραφίζει.', tr: 'ee KO-ri moo zo-ghra-FEE-zi', en: 'My daughter is drawing.' },
+  { blank: 'progiagia', el: 'Η προγιαγιά μου είναι πολύ γλυκιά.', tr: 'ee pro-ya-YA moo EE-ne po-LEE ghli-KYA', en: 'My great-grandmother is very sweet.' },
+];
+
+const DEM = {
+  ο: { el: 'Αυτός', tr: 'af-TOS' }, η: { el: 'Αυτή', tr: 'af-TEE' }, το: { el: 'Αυτό', tr: 'af-TO' },
+  οι: { el: 'Αυτοί', tr: 'af-TEE' }, τα: { el: 'Αυτά', tr: 'af-TA' },
+};
+const ART_TR = { ο: 'o', η: 'ee', το: 'to', οι: 'ee', τα: 'ta' };
+
+// Every word gets three template sentences ("This is my…", "Where is my…?",
+// "My … is here.") that follow the right Greek gender, plus any hand-written ones.
+export function sentencesFor(wid) {
+  const w = byId.get(wid);
+  if (!w || !w.art) return [];
+  const form = w.poss || w.el;
+  const d = DEM[w.art], a = ART_TR[w.art];
+  const A = w.art.charAt(0).toUpperCase() + w.art.slice(1);
+  const pl = !!w.plural;
+  const gen = [
+    { el: `${d.el} είναι ${w.art} ${form} μου.`, tr: `${d.tr} EE-ne ${a} ${w.tr} moo.`, en: pl ? `These are my ${w.en}.` : `This is my ${w.en}.` },
+    { el: `Πού είναι ${w.art} ${form} μου;`, tr: `poo EE-ne ${a} ${w.tr} moo?`, en: pl ? `Where are my ${w.en}?` : `Where is my ${w.en}?` },
+    { el: `${A} ${form} μου είναι εδώ.`, tr: `${a} ${w.tr} moo EE-ne e-THO.`, en: `My ${w.en} ${pl ? 'are' : 'is'} here.` },
+  ].map((s, t) => ({ ...s, t, id: `${wid}-${t}`, blank: wid, form }));
+  const hand = HAND_SENTENCES.filter((h) => h.blank === wid)
+    .map((h, i) => ({ ...h, t: 3 + i, id: `${wid}-h${i}`, form: h.form || form }));
+  return [...gen, ...hand];
+}

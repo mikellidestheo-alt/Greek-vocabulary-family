@@ -1,6 +1,6 @@
 // Checks js/words.js for mistakes. Run:  node scripts/validate-words.mjs
 // Add --list to print the audio file name expected for every word.
-import { WORDS, UNITS } from '../js/words.js';
+import { WORDS, UNITS, sentencesFor } from '../js/words.js';
 
 const errors = [];
 const ids = new Set();
@@ -11,7 +11,9 @@ for (const w of WORDS) {
   if (ids.has(w.id)) errors.push(`${w.id}: duplicate id`);
   ids.add(w.id);
   if (w.el !== w.el.normalize('NFC')) errors.push(`${w.id}: Greek text is not NFC-normalised`);
+  if (w.poss && w.poss !== w.poss.normalize('NFC')) errors.push(`${w.id}: "poss" is not NFC-normalised`);
   if (w.art && !['ο', 'η', 'το', 'οι', 'τα'].includes(w.art)) errors.push(`${w.id}: unknown article "${w.art}"`);
+  if (!/[A-Z]/.test(w.tr || '') && (w.tr || '').split('-').length > 1) errors.push(`${w.id}: tr has no CAPITAL stressed syllable`);
 }
 for (const w of WORDS) {
   if (w.pair) {
@@ -32,8 +34,21 @@ for (const u of UNITS) {
 for (const w of WORDS) if (!used.has(w.id)) errors.push(`${w.id}: not in any unit`);
 if (WORDS.filter((w) => w.picEx).length < 4) errors.push('need at least 4 words with picEx for picture questions');
 
+// sentences: every sentence must contain the word it is about, spelled as `form`
+let nSent = 0;
+for (const w of WORDS) {
+  for (const s of sentencesFor(w.id)) {
+    nSent++;
+    const tokens = s.el.split(' ').map((t) => t.replace(/[.;?!,]/g, ''));
+    if (!tokens.includes(s.form)) errors.push(`sentence ${s.id}: "${s.el}" does not contain "${s.form}"`);
+    if (s.el !== s.el.normalize('NFC')) errors.push(`sentence ${s.id}: not NFC-normalised`);
+    if (!s.tr || !s.en) errors.push(`sentence ${s.id}: missing tr or en`);
+    if (s.form !== w.el && s.form !== w.poss) errors.push(`sentence ${s.id}: form "${s.form}" is not "${w.el}"${w.poss ? ` or "${w.poss}"` : ''}`);
+  }
+}
+
 if (process.argv.includes('--list')) {
   for (const w of WORDS) console.log(`audio/${w.id}.mp3\t${w.art ? w.art + ' ' : ''}${w.el}\t${w.en}`);
 }
 if (errors.length) { console.error('\nProblems found:\n - ' + errors.join('\n - ')); process.exit(1); }
-console.log(`OK: ${WORDS.length} words in ${UNITS.length} units.`);
+console.log(`OK: ${WORDS.length} words in ${UNITS.length} units, ${nSent} sentences.`);

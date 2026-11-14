@@ -13,7 +13,11 @@ const defaults = () => ({
   daily: { day: '', xp: 0 },
   words: {},   // id -> { s: strength 0-5, seen, ok, bad }
   units: {},   // id -> { done: lessons completed 0-3 }
-  settings: { translit: true, sound: true, rate: 0.85, voice: '', unlockAll: false, goal: 100 },
+  skills: {    // answers per skill: first-try correct / total
+    translation: { ok: 0, total: 0 }, spelling: { ok: 0, total: 0 },
+    pronunciation: { ok: 0, total: 0 }, sentences: { ok: 0, total: 0 },
+  },
+  settings: { translit: true, sound: true, speaking: true, rate: 0.85, voice: '', unlockAll: false, goal: 100 },
 });
 
 export function dayKey(d = new Date()) {
@@ -26,7 +30,7 @@ function load() {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (raw && typeof raw === 'object') {
-      return { ...base, ...raw, settings: { ...base.settings, ...(raw.settings || {}) } };
+      return { ...base, ...raw, settings: { ...base.settings, ...(raw.settings || {}) }, skills: { ...base.skills, ...(raw.skills || {}) } };
     }
   } catch { /* private mode or corrupt data: start fresh */ }
   return base;
@@ -44,6 +48,16 @@ export function resetAll() {
   Object.assign(state, fresh);
   save();
 }
+
+export function bumpSkill(skill, ok) {
+  const s = (state.skills[skill] ||= { ok: 0, total: 0 });
+  s.total++;
+  if (ok) s.ok++;
+}
+export const skillPct = (skill) => {
+  const s = state.skills[skill];
+  return s && s.total ? Math.round((s.ok / s.total) * 100) : null;
+};
 
 export const ws = (id) => (state.words[id] ||= { s: 0, seen: 0, ok: 0, bad: 0 });
 export const unitDone = (id) => (state.units[id] && state.units[id].done) || 0;

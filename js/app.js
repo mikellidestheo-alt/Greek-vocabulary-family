@@ -1,13 +1,13 @@
-import { WORDS, UNITS, LESSONS_PER_UNIT, word, label } from './words.js';
-import { avatarSVG, owlSVG } from './avatars.js';
+import { WORDS, UNITS, LESSONS_PER_UNIT, word, label, sentencesFor } from './words.js';
+import { avatarSVG, mascotSVG } from './avatars.js';
 import {
-  state, save, resetAll, ws, unitDone, addXp, xpToday, touchStreak, liveStreak,
+  state, save, resetAll, ws, unitDone, addXp, xpToday, touchStreak, liveStreak, bumpSkill, skillPct,
 } from './store.js';
 import {
   initAudio, playWord, stopAudio, sfx, greekVoices, ttsSupported, hasRecording, hasFile,
-  canRecord, startRecording, stopRecording, saveRecording, deleteRecording,
+  canRecord, startRecording, stopRecording, saveRecording, deleteRecording, canListen, listenOnce, judgeSpeech,
 } from './audio.js';
-import { buildLesson, introWords } from './lesson.js';
+import { buildLesson, introWords, SKILLS } from './lesson.js';
 
 // ---------- tiny helpers ----------
 const h = (tag, props = {}, ...kids) => {
@@ -32,15 +32,19 @@ const tint = (hex, amt = 0.82) => {
   return `rgb(${mix(n >> 16)}, ${mix((n >> 8) & 255)}, ${mix(n & 255)})`;
 };
 const DEBUG = new URLSearchParams(location.search).has('debug');
+const skillInfo = (id) => SKILLS.find((s) => s.id === id);
 
-function avatar(pic, size = 64, bg = '#dff0ff') {
-  return h('span', { class: 'avatar', style: `width:${size}px;height:${size}px`, html: avatarSVG(pic, { bg }) });
+// sizes are in rem so the whole app scales up on tablets
+function avatar(pic, size = 64, bg = '#e9defa') {
+  const rem = `${(size / 16).toFixed(2)}rem`;
+  return h('span', { class: 'avatar', style: `width:${rem};height:${rem}`, html: avatarSVG(pic, { bg }) });
 }
 const unitBg = (wid) => {
   const u = UNITS.find((x) => x.words.includes(wid));
-  return u ? tint(u.color, 0.8) : '#dff0ff';
+  return u ? tint(u.color, 0.84) : '#e9defa';
 };
 const wordAvatar = (w, size) => avatar(w.pic, size, unitBg(w.id));
+const mascot = (cls = '', mood = 'happy') => h('span', { class: `mascot ${cls}`, html: mascotSVG(mood) });
 
 function speakerBtn(w, { slow = false, big = false } = {}) {
   return h('button', {
@@ -56,10 +60,24 @@ function toast(msg) {
   clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2600);
 }
 
+// ---------- full screen ----------
+const fsAvailable = () => !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+const inFullscreen = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+function toggleFullscreen() {
+  try {
+    if (inFullscreen()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    else {
+      const el = document.documentElement;
+      const p = (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+      if (p && p.catch) p.catch(() => toast('Full screen is not allowed here'));
+    }
+  } catch { toast('Full screen is not available'); }
+}
+const isStandalone = () => matchMedia('(display-mode: fullscreen)').matches || matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+
 // ---------- shell & routing ----------
 const view = document.getElementById('view');
 const tabs = [...document.querySelectorAll('#tabs a')];
-
 const routes = { learn: viewLearn, words: viewWords, me: viewMe, record: viewRecord };
 
 function route() {
@@ -70,6 +88,7 @@ function route() {
   window.scrollTo(0, 0);
 }
 window.addEventListener('hashchange', route);
+document.addEventListener('fullscreenchange', () => { const b = document.getElementById('fsbtn'); if (b) b.textContent = inFullscreen() ? '🡼' : '⛶'; });
 
 // ---------- Learn ----------
 function ring(value, goal) {
@@ -82,31 +101,45 @@ function ring(value, goal) {
   });
 }
 
+const speakAvailable = () => state.settings.speaking && !micBlocked && (canRecord() || (canListen() && !srBroken));
+let micBlocked = false, srBroken = false;
+
 function viewLearn() {
   const root = h('div', { class: 'page learn' });
   const streak = liveStreak();
   const goal = state.settings.goal;
-  root.append(h('header', { class: 'topbar' },
-    h('span', { class: 'owl', html: owlSVG() }),
+  root.append(h('header', { class: 'topbar wide' },
+    mascot('hero'),
     h('div', { class: 'greet' },
       h('div', { class: 'hello' }, state.name ? `Γεια σου, ${state.name}!` : 'Γεια σου!'),
-      h('div', { class: 'small' }, 'Let’s learn the family words')),
+      h('div', { class: 'small' }, 'Floufi and the family monsters are ready to learn Greek!')),
     h('div', { class: 'stats' },
       h('span', { class: `chip ${streak ? 'hot' : ''}`, title: 'Day streak' }, `🔥 ${streak}`),
       h('span', { class: 'chip', title: 'Total XP' }, `⚡ ${state.xp}`),
-      ring(xpToday(), goal))));
+      ring(xpToday(), goal),
+      fsAvailable() ? h('button', { id: 'fsbtn', class: 'iconbtn', type: 'button', 'aria-label': 'Toggle full screen', onclick: toggleFullscreen }, inFullscreen() ? '🡼' : '⛶') : null)));
+
+  // the four skills, each practised in every lesson and also on its own
+  root.append(h('section', { class: 'skills wide' },
+    h('h2', {}, 'Four ways to practise'),
+    h('div', { class: 'skillgrid' }, SKILLS.map((s) => {
+      const pct = skillPct(s.id);
+      return h('button', { class: `skill sk-${s.id}`, type: 'button', onclick: () => startLesson({ kind: 'skill', skill: s.id }) },
+        h('span', { class: 'si' }, s.icon),
+        h('span', { class: 'st' }, h('b', {}, s.title), h('span', { class: 'small' }, pct == null ? s.desc : `${pct}% right first time`)));
+    }))));
 
   if (ttsSupported() && greekVoices().length === 0 && sessionStorage.getItem('gvf.novoice') !== '1') {
-    root.append(h('div', { class: 'notice' },
+    root.append(h('div', { class: 'notice wide' },
       h('button', { class: 'close', type: 'button', 'aria-label': 'Hide this message', onclick: (e) => { try { sessionStorage.setItem('gvf.novoice', '1'); } catch { /* ignore */ } e.target.closest('.notice').remove(); } }, '✕'),
       h('b', {}, 'No Greek voice found on this device. '),
       'Words will be read with a default voice, which may sound wrong. Add a Greek voice in your device’s language settings, or record real voices for the family in ',
       h('a', { href: '#/record' }, 'Me › Record family voices'), '.'));
   }
 
-  const weak = WORDS.filter((w) => ws(w.id).seen > 0).length;
-  if (weak >= 3) {
-    root.append(h('button', { class: 'pill', type: 'button', onclick: () => startLesson({ kind: 'practice' }) }, '💪 Practise my tricky words'));
+  const seen = WORDS.filter((w) => ws(w.id).seen > 0).length;
+  if (seen >= 3) {
+    root.append(h('button', { class: 'pill wide', type: 'button', onclick: () => startLesson({ kind: 'practice' }) }, '💪 Practise my tricky words'));
   }
 
   let node = 0;
@@ -116,20 +149,20 @@ function viewLearn() {
     const done = unitDone(u.id);
     root.append(h('section', { class: 'unit', style: `--uc:${u.color}` },
       h('div', { class: 'banner' },
-        wordAvatar(word(u.icon), 54),
+        wordAvatar(word(u.icon), 60),
         h('div', {},
           h('div', { class: 'kicker' }, `Unit ${ui + 1}`),
           h('h2', {}, u.title),
           h('div', { class: 'small' }, `${u.words.length} words`)),
-        h('a', { class: 'banner-btn', href: '#/words', 'aria-label': `See the words in ${u.title}`, onclick: () => { sessionStorage.setItem('gvf.jump', u.id); } }, '📖')),
+        h('a', { class: 'banner-btn', href: '#/words', 'aria-label': `See the words in ${u.title}`, onclick: () => { try { sessionStorage.setItem('gvf.jump', u.id); } catch { /* ignore */ } } }, '📖')),
       h('div', { class: 'path' },
         Array.from({ length: LESSONS_PER_UNIT }, (_, k) => {
           const i = node++;
           const isDone = k < done;
           const isOpen = unlocked(i);
           const isCurrent = isOpen && !isDone && k === done;
-          const offset = [0, 38, 58, 38][k % 4];
-          return h('div', { class: 'node-row', style: `transform:translateX(${offset}px)` },
+          const offset = [0, 2.4, 3.6, 2.4][k % 4];
+          return h('div', { class: 'node-row', style: `transform:translateX(${offset}rem)` },
             h('button', {
               type: 'button', class: `node ${isDone ? 'done' : ''} ${isCurrent ? 'current' : ''} ${isOpen ? '' : 'locked'}`,
               disabled: !isOpen, 'aria-label': `${u.title}, lesson ${k + 1}${isDone ? ', completed' : isOpen ? '' : ', locked'}`,
@@ -158,24 +191,41 @@ function viewWords() {
   const jump = sessionStorage.getItem('gvf.jump');
   sessionStorage.removeItem('gvf.jump');
   const root = h('div', { class: 'page words' },
-    h('header', { class: 'plain' }, h('h1', {}, 'All the words'),
+    h('header', { class: 'plain wide' }, h('h1', {}, 'All the words'),
       h('label', { class: 'switch' },
         h('input', { type: 'checkbox', checked: state.settings.translit, onchange: (e) => { state.settings.translit = e.target.checked; save(); route(); } }),
         h('span', {}, 'Show how to say it'))));
   UNITS.forEach((u) => {
+    const words = u.words.map(word);
+    const sents = words.flatMap((w) => sentencesFor(w.id).filter((s) => s.t === 0 || s.t >= 3));
     root.append(h('section', { class: 'wunit', id: `u-${u.id}`, style: `--uc:${u.color}` },
       h('h2', {}, u.title),
       h('p', { class: 'note' }, u.note),
-      u.words.map(word).map((w) => wordRow(w))));
+      words.map((w) => wordRow(w)),
+      sents.length ? h('details', { class: 'sentences' },
+        h('summary', {}, `💬 Sentences (${sents.length})`),
+        sents.map((s) => sentenceRow(s))) : null));
   });
   if (jump) setTimeout(() => document.getElementById(`u-${jump}`)?.scrollIntoView({ behavior: 'smooth' }), 50);
   return root;
 }
 
+const sentenceWord = (s) => ({ id: `s-${s.id}`, el: s.el, art: '', tr: s.tr, en: s.en, say: s.el });
+
+function sentenceRow(s) {
+  const pw = sentenceWord(s);
+  return h('div', { class: 'srow', onclick: () => playWord(pw) },
+    h('div', { class: 'wtext' },
+      h('div', { class: 'sel' }, s.el),
+      state.settings.translit ? h('div', { class: 'tr' }, s.tr) : null,
+      h('div', { class: 'en' }, s.en)),
+    h('div', { class: 'wbtns' }, speakerBtn(pw), speakerBtn(pw, { slow: true })));
+}
+
 function wordRow(w) {
   const rec = hasRecording(w.id) ? '🎙 recorded voice' : hasFile(w.id) ? '🎧 audio file' : '';
   return h('div', { class: 'wrow', onclick: () => playWord(w) },
-    wordAvatar(w, 58),
+    wordAvatar(w, 64),
     h('div', { class: 'wtext' },
       h('div', { class: 'el' }, label(w)),
       state.settings.translit ? h('div', { class: 'tr' }, w.tr) : null,
@@ -189,10 +239,21 @@ function viewMe() {
   const mastered = WORDS.filter((w) => ws(w.id).s >= 4).length;
   const voices = greekVoices();
   const root = h('div', { class: 'page me' },
-    h('header', { class: 'plain' }, h('h1', {}, 'Me')),
+    h('header', { class: 'plain wide' }, h('h1', {}, 'Me')),
     h('div', { class: 'tiles' },
       tile('🔥', liveStreak(), 'day streak'), tile('⚡', state.xp, 'total XP'),
       tile('🏅', state.best, 'best streak'), tile('⭐', `${mastered}/${WORDS.length}`, 'words known')),
+    h('section', { class: 'card' },
+      h('h2', {}, 'My skills'),
+      h('div', { class: 'skillbars' }, SKILLS.map((s) => {
+        const st = state.skills[s.id] || { ok: 0, total: 0 };
+        const pct = skillPct(s.id);
+        return h('div', { class: 'sbar' },
+          h('span', { class: 'si' }, s.icon),
+          h('div', { class: 'sbody' },
+            h('div', {}, h('b', {}, s.title), h('span', { class: 'small' }, ` · ${st.total} answered${pct == null ? '' : ` · ${pct}% right first time`}`)),
+            h('div', { class: 'meter' }, h('i', { style: `width:${pct || 0}%` }))));
+      }))),
     h('section', { class: 'card' },
       h('h2', {}, 'My name'),
       h('input', { class: 'text', type: 'text', maxlength: 20, value: state.name, placeholder: 'Type your name',
@@ -201,6 +262,7 @@ function viewMe() {
       h('h2', {}, 'Sound'),
       toggle('Sound effects', 'sound'),
       toggle('Show how to say the words', 'translit'),
+      toggle('Speaking practice (uses the microphone)', 'speaking'),
       h('label', { class: 'field' }, h('span', {}, 'Speaking speed'),
         h('input', { type: 'range', min: 0.5, max: 1.1, step: 0.05, value: state.settings.rate,
           oninput: (e) => { state.settings.rate = Number(e.target.value); save(); } }),
@@ -213,6 +275,14 @@ function viewMe() {
           : h('p', { class: 'warn' }, 'No Greek voice is installed on this device. Install one in the device’s language settings, or record voices below.'))
         : h('p', { class: 'warn' }, 'This browser cannot speak out loud. Record voices below instead.'),
       h('a', { class: 'btn ghost', href: '#/record' }, '🎙 Record family voices')),
+    h('section', { class: 'card' },
+      h('h2', {}, 'Full screen'),
+      fsAvailable()
+        ? h('button', { class: 'btn ghost', type: 'button', onclick: toggleFullscreen }, '⛶ Toggle full screen')
+        : null,
+      h('p', { class: 'small' }, isStandalone()
+        ? 'You are using the installed app, so it already fills the screen.'
+        : 'For the best tablet experience, install it: on iPad tap Share › Add to Home Screen. On Android tap ⋮ › Install app. It then opens full screen, like a real app.')),
     h('section', { class: 'card' },
       h('h2', {}, 'Grown-ups'),
       h('label', { class: 'field' }, h('span', {}, 'Daily goal'),
@@ -238,10 +308,10 @@ function toggle(text, key) {
 function viewRecord() {
   let busy = null;
   const root = h('div', { class: 'page record' },
-    h('header', { class: 'plain' }, h('a', { class: 'back', href: '#/me' }, '‹ Back'), h('h1', {}, 'Record family voices')),
-    h('p', { class: 'note' }, 'Ask Yiayia or Pappou to say each word. Tap ● to start, tap ■ to stop. Recordings are saved on this device only and are used instead of the computer voice. To share voices with every device, add mp3 files to the audio folder (see audio/README.md).'));
-  if (!canRecord()) root.append(h('p', { class: 'warn' }, 'This browser cannot record audio.'));
-  const rows = h('div', { class: 'rec-list' });
+    h('header', { class: 'plain wide' }, h('a', { class: 'back', href: '#/me' }, '‹ Back'), h('h1', {}, 'Record family voices')),
+    h('p', { class: 'note wide' }, 'Ask Yiayia or Pappou to say each word. Tap ● to start, tap ■ to stop. Recordings are saved on this device only and are used instead of the computer voice. To share voices with every device, add mp3 files to the audio folder (see audio/README.md).'));
+  if (!canRecord()) root.append(h('p', { class: 'warn wide' }, 'This browser cannot record audio.'));
+  const rows = h('div', { class: 'rec-list wide' });
   const draw = () => {
     rows.replaceChildren(...WORDS.map((w) => {
       const has = hasRecording(w.id);
@@ -276,9 +346,9 @@ function welcome() {
   const done = () => { state.name = input.value.trim(); state.onboarded = true; save(); dlg.remove(); route(); };
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') done(); });
   const dlg = h('div', { class: 'overlay' }, h('div', { class: 'dialog' },
-    h('span', { class: 'owl big', html: owlSVG() }),
+    mascot('big'),
     h('h1', {}, 'Καλώς ήρθες!'),
-    h('p', {}, 'Welcome! I’m Sofia the owl. Let’s learn the Greek words for the people in your family. What’s your name?'),
+    h('p', {}, 'Welcome! I’m Floufi, and these are the family monsters. Let’s learn the Greek words for all your relatives. What’s your name?'),
     input,
     h('button', { class: 'btn', type: 'button', onclick: done }, 'Let’s go!')));
   document.body.append(dlg);
@@ -293,14 +363,16 @@ let L = null;
 
 const PRAISE = [['Μπράβο!', 'Well done!'], ['Σωστά!', 'Correct!'], ['Τέλεια!', 'Perfect!'], ['Εξαιρετικά!', 'Excellent!'], ['Ωραία!', 'Lovely!']];
 const OOPS = [['Σχεδόν!', 'Almost!'], ['Δοκίμασε ξανά!', 'Try again!'], ['Λίγο ακόμα!', 'Nearly there!']];
+const SOFT = [['Καλή προσπάθεια!', 'Nice try!'], ['Συνέχισε!', 'Keep going!']];
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
 function startLesson(spec) {
   stopAudio();
-  const queue = buildLesson(spec);
+  const queue = buildLesson(spec, { speak: speakAvailable() });
   L = {
     spec, queue, i: 0, hearts: 5, total: queue.length, done: 0, firstTry: 0, mistakes: 0, xp: 0,
     attempted: new Set(), requeued: new Map(), touched: new Set(),
+    skills: [...new Set(queue.map((q) => q.skill))],
   };
   lessonEl.hidden = false;
   document.body.classList.add('in-lesson');
@@ -310,7 +382,6 @@ function startLesson(spec) {
 
 function closeLesson() {
   stopAudio();
-  window.removeEventListener('keydown', onKey);
   lessonEl.hidden = true; lessonEl.replaceChildren();
   document.body.classList.remove('in-lesson');
   L = null;
@@ -335,8 +406,8 @@ function showIntro(unit) {
     const w = words[n];
     const last = n === words.length - 1;
     const body = h('div', { class: 'lbody intro' },
-      h('div', { class: 'kicker' }, `Meet the words · ${n + 1} of ${words.length}`),
-      wordAvatar(w, 170),
+      h('div', { class: 'kicker' }, `Meet the monsters · ${n + 1} of ${words.length}`),
+      wordAvatar(w, 190),
       h('div', { class: 'bigword' }, label(w)),
       state.settings.translit ? h('div', { class: 'tr' }, w.tr) : null,
       h('div', { class: 'en' }, cap(w.en)),
@@ -359,76 +430,95 @@ function nextQuestion() {
   renderQuestion(L.queue[L.i]);
 }
 
+function skipQuestion() { L.total = Math.max(1, L.total - 1); L.i++; nextQuestion(); }
+
+const PROMPT_CLASS = { greek: 'bigword', en: 'bigword en', letters: 'bigword letters', sent: 'bigword sent', 'sent-en': 'bigword sent en' };
+
 function renderQuestion(q) {
-  const body = h('div', { class: 'lbody' }, h('h1', { class: 'qtitle' }, q.title));
+  const sk = skillInfo(q.skill);
+  const body = h('div', { class: `lbody ${q.kind === 'speak' ? 'speakbody' : ''}` },
+    h('div', { class: `skilltag sk-${q.skill}` }, `${sk.icon} ${sk.title}`),
+    h('h1', { class: 'qtitle' }, q.title));
   const foot = h('div', { class: 'lfoot' });
   const fb = h('div', { class: 'fb', role: 'status', 'aria-live': 'polite' });
   const wrap = h('div', { class: 'lwrap' }, body, h('div', { class: 'ldock' }, fb, foot));
   lessonShell(wrap);
 
   const w = q.say || word(q.wid);
+
+  if (q.kind === 'speak') { renderSpeak(q, body, foot, fb); return; }
+
   const checkBtn = h('button', { class: 'btn', type: 'button', disabled: true }, 'Check');
   foot.append(checkBtn);
   let locked = false;
   let getAnswer = () => null;
 
-  // what to show above the answers
   if (q.listen) body.append(h('div', { class: 'row center' }, speakerBtn(w, { big: true }), speakerBtn(w, { slow: true, big: true })));
   if (q.show) {
     body.append(h('div', { class: 'promptcard' },
       h('div', { class: 'bigword' }, label(q.show)),
-      state.settings.translit ? h('div', { class: 'tr' }, q.show.tr) : null,
+      state.settings.translit && q.type !== 'stress' ? h('div', { class: 'tr' }, q.show.tr) : null,
       h('div', { class: 'row center' }, speakerBtn(q.show), speakerBtn(q.show, { slow: true }))));
   }
-  if (q.pic) body.append(h('div', { class: 'row center' }, wordAvatar(q.pic, 150)));
+  if (q.showSentence) {
+    body.append(h('div', { class: 'promptcard' },
+      h('div', { class: 'bigword sent' }, q.showSentence.el),
+      state.settings.translit ? h('div', { class: 'tr' }, q.showSentence.tr) : null,
+      h('div', { class: 'row center' }, speakerBtn(w), speakerBtn(w, { slow: true }))));
+  }
+  if (q.pic) body.append(h('div', { class: 'row center' }, wordAvatar(q.pic, 170)));
   if (q.prompt) {
     body.append(h('div', { class: 'promptcard' },
-      h('div', { class: q.type === 'article' ? 'bigword' : 'bigword en' }, q.type === 'article' || q.type === 'counterpart' ? q.prompt : cap(q.prompt)),
+      h('div', { class: PROMPT_CLASS[q.promptClass] || 'bigword' }, q.promptClass === 'en' ? cap(q.prompt) : q.prompt),
       q.sub ? h('div', { class: 'small' }, `(${q.sub})`) : null,
-      q.type === 'en-el' || q.type === 'build-en' ? null : (q.say ? h('div', { class: 'row center' }, speakerBtn(q.say)) : null)));
+      !q.silent && q.say ? h('div', { class: 'row center' }, speakerBtn(q.say)) : null));
   }
 
   if (q.kind === 'choice') {
     let sel = null;
     const els = new Map();
-    const grid = h('div', { class: `opts ${q.picOpts ? 'pics' : ''} ${q.articleOpts ? 'arts' : ''}` });
+    const grid = h('div', { class: `opts ${q.gridClass || ''}` });
     q.options.forEach((o, idx) => {
-      const b = h('button', { type: 'button', class: `opt ${q.wordOpts || q.articleOpts ? 'greek' : ''}`, 'data-correct': DEBUG && o.correct ? '1' : null, 'aria-label': q.picOpts ? 'picture' : null,
-        onclick: () => { if (locked) return; sel = o; els.forEach((e) => e.classList.remove('sel')); b.classList.add('sel'); checkBtn.disabled = false; sfx('tap'); } },
-        q.picOpts ? wordAvatar(o.pic, 96) : null,
-        q.picOpts ? null : h('span', { class: 'k' }, String(idx + 1)),
-        q.picOpts ? null : h('span', { class: 'lbl' }, q.wordOpts || q.articleOpts ? o.label : cap(o.label)));
+      const b = h('button', {
+        type: 'button', class: `opt ${q.optClass || ''}`, 'data-correct': DEBUG && o.correct ? '1' : null, 'aria-label': q.picOpts ? 'picture' : null,
+        onclick: () => { if (locked) return; sel = o; els.forEach((e) => e.classList.remove('sel')); b.classList.add('sel'); checkBtn.disabled = false; sfx('tap'); },
+      },
+      q.picOpts ? wordAvatar(o.pic, 112) : null,
+      q.picOpts || q.gridClass ? null : h('span', { class: 'k' }, String(idx + 1)),
+      q.picOpts ? null : h('span', { class: 'lbl' }, q.optClass ? o.label : cap(o.label)));
       els.set(o.key, b); grid.append(b);
     });
     body.append(grid);
     getAnswer = () => {
       const ok = !!sel && sel.correct;
-      els.forEach((e, key) => { const o = q.options.find((x) => x.key === key); if (o.correct) e.classList.add('right'); });
+      q.options.forEach((o) => { if (o.correct) els.get(o.key).classList.add('right'); });
       if (!ok && sel) els.get(sel.key).classList.add('wrong');
       const right = q.options.find((o) => o.correct);
-      return { ok, answer: q.picOpts ? label(word(right.key)) : right.label };
+      return { ok, answer: q.answerText || (q.picOpts ? label(word(right.key)) : right.label) };
     };
-    wrap._keys = (n) => { const o = q.options[n]; if (o && !locked) els.get(o.key).click(); };
+    wrap._keys = (n) => { const o = q.options[n]; if (o && !locked && !q.gridClass) els.get(o.key).click(); };
   } else if (q.kind === 'build') {
     const chosen = [];
-    const line = h('div', { class: 'buildline', 'aria-label': 'Your answer' });
+    const joiner = q.joiner || '';
+    const line = h('div', { class: 'buildline', 'aria-label': 'Your answer', 'data-answer': DEBUG ? q.answer : null });
     const bank = h('div', { class: 'bank' });
+    const tcls = `tile-l ${q.words ? 'tile-w' : ''}`;
     const draw = () => {
-      line.replaceChildren(...chosen.map((t) => h('button', { type: 'button', class: 'tile-l', onclick: () => { if (locked) return; chosen.splice(chosen.indexOf(t), 1); draw(); sfx('tap'); } }, t.c)));
-      bank.replaceChildren(...q.tiles.map((t) => chosen.includes(t)
-        ? h('span', { class: 'tile-l ghost' }, t.c)
-        : h('button', { type: 'button', class: 'tile-l', onclick: () => { if (locked) return; chosen.push(t); draw(); sfx('tap'); } }, t.c)));
+      line.replaceChildren(...chosen.map((t) => h('button', { type: 'button', class: tcls, onclick: () => { if (locked) return; chosen.splice(chosen.indexOf(t), 1); draw(); sfx('tap'); } }, t.c)));
+      bank.replaceChildren(...q.tiles.map((t) => (chosen.includes(t)
+        ? h('span', { class: `${tcls} ghost` }, t.c)
+        : h('button', { type: 'button', class: tcls, onclick: () => { if (locked) return; chosen.push(t); draw(); sfx('tap'); } }, t.c))));
       checkBtn.disabled = chosen.length === 0;
     };
     draw();
     body.append(line, bank);
     getAnswer = () => {
-      const ok = chosen.map((t) => t.c).join('') === q.answer;
+      const ok = chosen.map((t) => t.c).join(joiner) === q.answer;
       line.classList.add(ok ? 'right' : 'wrong');
       return { ok, answer: q.answer };
     };
   } else if (q.kind === 'match') {
-    renderMatch(q, body, foot, fb, wrap);
+    renderMatch(q, body, foot, fb);
     return;
   }
 
@@ -440,26 +530,119 @@ function renderQuestion(q) {
     showFeedback(fb, foot, ok, answer, q);
   };
   checkBtn.addEventListener('click', finish);
-  wrap._enter = () => { if (!checkBtn.disabled && !locked) finish(); };
   if ((q.listen || q.autoplay) && w) setTimeout(() => playWord(w), 250);
 }
 
+// ---- say it out loud ----
+function renderSpeak(q, body, foot, fb) {
+  const w = q.target;
+  let tries = 0, finished = false;
+  const status = h('div', { class: 'speak-status', 'aria-live': 'polite' }, 'Listen first, then tap the microphone and say the word.');
+  const area = h('div', { class: 'speak-area' });
+  body.append(
+    h('div', { class: 'promptcard' },
+      h('div', { class: 'bigword' }, label(w)),
+      state.settings.translit ? h('div', { class: 'tr' }, w.tr) : null,
+      h('div', { class: 'row center' }, speakerBtn(w, { big: true }), speakerBtn(w, { slow: true, big: true }))),
+    area, status);
+  foot.replaceChildren(h('button', { class: 'btn ghost', type: 'button', onclick: skipQuestion }, 'Skip this one'));
+
+  const done = (ok) => {
+    if (finished) return;
+    finished = true;
+    recordSpeak(q, ok);
+    showFeedback(fb, foot, ok, ok ? null : label(w), q, { skipRecord: true, soft: !ok });
+  };
+  const blocked = () => {
+    micBlocked = true;
+    status.textContent = 'The microphone is blocked, so we’ll skip this one.';
+    setTimeout(skipQuestion, 1700);
+  };
+
+  // A: the browser listens and judges (Chrome, Android, recent Safari)
+  const listenMode = () => {
+    const mic = h('button', { class: 'mic', type: 'button', 'aria-label': 'Tap and say the word' }, '🎤');
+    area.replaceChildren(mic);
+    mic.onclick = async () => {
+      stopAudio(); mic.classList.add('live'); status.textContent = 'Listening… say it now!';
+      try {
+        const alts = await listenOnce();
+        mic.classList.remove('live');
+        if (judgeSpeech(alts, w)) { done(true); return; }
+        tries++;
+        status.textContent = alts[0] ? `I heard “${alts[0]}”. Try again!` : 'I didn’t catch that. Try again!';
+        if (tries >= 2) done(false);
+      } catch (err) {
+        mic.classList.remove('live');
+        if (err === 'denied') blocked();
+        else { srBroken = true; recordMode(); }
+      }
+    };
+  };
+
+  // B: record yourself, then compare with the real word and rate yourself
+  const recordMode = () => {
+    if (!canRecord()) { status.textContent = 'Speaking practice isn’t available on this device.'; setTimeout(skipQuestion, 1700); return; }
+    let mineUrl = null, recording = false;
+    const playMine = (chain) => {
+      if (!mineUrl) return;
+      stopAudio();
+      const a = new Audio(mineUrl);
+      if (chain === true) a.onended = () => playWord(w);
+      a.play().catch(() => {});
+    };
+    const mic = h('button', { class: 'mic', type: 'button', 'aria-label': 'Record yourself' }, '🎤');
+    const after = h('div', { class: 'speak-after', hidden: true },
+      h('div', { class: 'row center wrap' },
+        h('button', { class: 'mini big', type: 'button', onclick: () => playMine() }, '▶ Hear me'),
+        h('button', { class: 'mini big', type: 'button', onclick: () => playWord(w) }, '🔊 Hear the word')),
+      h('div', { class: 'row center wrap' },
+        h('button', { class: 'btn', type: 'button', onclick: () => done(true) }, '😄 I said it well!'),
+        h('button', { class: 'btn ghost', type: 'button', onclick: () => done(false) }, '🔁 More practice')));
+    area.replaceChildren(mic, after);
+    status.textContent = 'Tap the microphone, say the word, then tap again to stop.';
+    mic.onclick = async () => {
+      try {
+        if (!recording) {
+          stopAudio(); await startRecording(); recording = true;
+          mic.classList.add('live'); mic.textContent = '■'; status.textContent = 'Recording… tap to stop.';
+        } else {
+          const blob = await stopRecording(); recording = false;
+          mic.classList.remove('live'); mic.textContent = '🎤';
+          if (blob && blob.size > 300) {
+            if (mineUrl) URL.revokeObjectURL(mineUrl);
+            mineUrl = URL.createObjectURL(blob);
+            after.hidden = false;
+            status.textContent = 'Listen to yourself, then to the real word. How did you do?';
+            playMine(true);
+          } else status.textContent = 'That was too short. Try again!';
+        }
+      } catch { recording = false; blocked(); }
+    };
+  };
+
+  if (canListen() && !srBroken) listenMode(); else recordMode();
+}
+
 // ---- matching pairs ----
-function renderMatch(q, body, foot, fb, wrap) {
+function renderMatch(q, body, foot, fb) {
   foot.replaceChildren();
   let left = null, right = null, matched = 0, hadMiss = false, over = false;
   const lbtn = new Map(), rbtn = new Map();
-  const clear = () => { left = right = null; lbtn.forEach((b) => b.classList.remove('sel')); rbtn.forEach((b) => b.classList.remove('sel')); };
+  const unsel = (m) => m.forEach((b) => b.classList.remove('sel'));
+  const clear = () => { left = right = null; unsel(lbtn); unsel(rbtn); };
   const tryPair = () => {
     if (!left || !right || over) return;
     if (left === right) {
       [lbtn.get(left), rbtn.get(right)].forEach((b) => { b.classList.add('right'); b.disabled = true; });
       const p = q.pairs.find((x) => x.id === left);
       playWord(p.w); sfx('ok'); matched++;
-      const pw = ws(p.id); pw.seen++; pw.ok++; if (!hadMiss) pw.s = Math.min(5, pw.s + 1); markTouched(p.id);
+      const pw = ws(p.id); pw.seen++; pw.ok++; if (!hadMiss) pw.s = Math.min(5, pw.s + 1);
+      L.touched.add(p.id);
       clear();
       if (matched === q.pairs.length) {
-        L.done++; if (!hadMiss) { L.firstTry++; L.xp += 10; } else L.xp += 5;
+        L.done++; bumpSkill('translation', !hadMiss);
+        if (!hadMiss) { L.firstTry++; L.xp += 10; } else L.xp += 5;
         showFeedback(fb, foot, true, null, q, { skipRecord: true });
       }
     } else {
@@ -469,20 +652,19 @@ function renderMatch(q, body, foot, fb, wrap) {
       hadMiss = true; L.hearts--; L.mistakes++; sfx('bad');
       const wsx = ws(left); wsx.bad++; wsx.s = Math.max(0, wsx.s - 1);
       clear(); updateHearts();
-      if (L.hearts <= 0) { over = true; showFeedback(fb, foot, false, null, q, { skipRecord: true, noRequeue: true }); }
+      if (L.hearts <= 0) { over = true; bumpSkill('translation', false); showFeedback(fb, foot, false, null, q, { skipRecord: true }); }
     }
     save();
   };
   const leftCol = h('div', { class: 'col' }, q.pairs.map((p) => {
-    const b = h('button', { type: 'button', class: 'opt greek', onclick: () => { if (b.disabled) return; clear2(lbtn); left = p.id; b.classList.add('sel'); playWord(p.w); tryPair(); } }, p.el);
+    const b = h('button', { type: 'button', class: 'opt greek', 'data-pid': DEBUG ? p.id : null, onclick: () => { if (b.disabled) return; unsel(lbtn); left = p.id; b.classList.add('sel'); playWord(p.w); tryPair(); } }, p.el);
     lbtn.set(p.id, b); return b;
   }));
   const rightCol = h('div', { class: 'col' }, q.rightOrder.map((id) => {
     const p = q.pairs.find((x) => x.id === id);
-    const b = h('button', { type: 'button', class: 'opt', onclick: () => { if (b.disabled) return; clear2(rbtn); right = p.id; b.classList.add('sel'); sfx('tap'); tryPair(); } }, cap(p.en));
+    const b = h('button', { type: 'button', class: 'opt', 'data-pid': DEBUG ? p.id : null, onclick: () => { if (b.disabled) return; unsel(rbtn); right = p.id; b.classList.add('sel'); sfx('tap'); tryPair(); } }, cap(p.en));
     rbtn.set(p.id, b); return b;
   }));
-  const clear2 = (m) => m.forEach((b) => b.classList.remove('sel'));
   body.append(h('div', { class: 'match' }, leftCol, rightCol));
 }
 
@@ -493,13 +675,12 @@ function updateHearts() {
 }
 
 // ---- results ----
-function markTouched(id) { L.touched.add(id); }
-
 function recordResult(q, ok) {
   const first = !L.attempted.has(q.id);
   L.attempted.add(q.id);
   const s = ws(q.wid);
-  markTouched(q.wid);
+  L.touched.add(q.wid);
+  if (first) bumpSkill(q.skill, ok);
   if (ok) {
     if (first) { L.firstTry++; L.xp += 10; s.ok++; s.s = Math.min(5, s.s + 1); s.seen++; } else L.xp += 5;
     L.done++;
@@ -513,27 +694,42 @@ function recordResult(q, ok) {
   updateHearts();
 }
 
-function showFeedback(fb, foot, ok, answer, q, { skipRecord = false, noRequeue = false } = {}) {
-  const [elTxt, enTxt] = ok ? pick(PRAISE) : pick(OOPS);
+// speaking practice never costs a heart
+function recordSpeak(q, ok) {
+  const first = !L.attempted.has(q.id);
+  L.attempted.add(q.id);
+  const s = ws(q.wid);
+  L.touched.add(q.wid);
+  if (first) {
+    s.seen++;
+    bumpSkill('pronunciation', ok);
+    if (ok) { s.ok++; s.s = Math.min(5, s.s + 1); } else s.bad++;
+  }
+  L.done++;
+  if (ok) { L.firstTry++; L.xp += 10; sfx('ok'); } else L.xp += 3;
+  save();
+}
+
+function showFeedback(fb, foot, ok, answer, q, { skipRecord = false, soft = false } = {}) {
+  const [elTxt, enTxt] = ok ? pick(PRAISE) : soft ? pick(SOFT) : pick(OOPS);
   const showWord = q.sayAfter || q.say || word(q.wid);
-  fb.className = `fb show ${ok ? 'good' : 'bad'}`;
+  fb.className = `fb show ${ok ? 'good' : soft ? 'soft' : 'bad'}`;
   fb.replaceChildren(
-    h('span', { class: 'owl mini', html: owlSVG(ok ? 'happy' : 'sad') }),
+    mascot('mini', ok || soft ? 'happy' : 'sad'),
     h('div', {},
       h('div', { class: 'fbt' }, `${elTxt} `, h('span', { class: 'fbe' }, enTxt)),
-      !ok && answer ? h('div', { class: 'fba' }, 'Correct answer: ', h('b', {}, answer)) : null,
-      q.kind !== 'match' ? h('div', { class: 'fbw' }, `${label(showWord)} · ${showWord.tr}`) : null),
-    q.kind !== 'match' ? speakerBtn(showWord) : null);
-  if (!ok && !noRequeue && !skipRecord && (L.requeued.get(q.id) || 0) < 2) {
+      !ok && answer ? h('div', { class: 'fba' }, soft ? 'Say it with me: ' : 'Correct answer: ', h('b', {}, answer)) : null,
+      q.kind !== 'match' && showWord ? h('div', { class: 'fbw' }, `${label(showWord)} · ${showWord.tr}`) : null),
+    q.kind !== 'match' && showWord ? speakerBtn(showWord) : null);
+  if (!ok && !soft && !skipRecord && (L.requeued.get(q.id) || 0) < 2) {
     L.requeued.set(q.id, (L.requeued.get(q.id) || 0) + 1);
     L.queue.push(q); L.total++;
   }
-  if (ok && q.kind !== 'match' && !q.listen && !q.autoplay) setTimeout(() => playWord(showWord), 150);
+  if ((ok || soft) && q.kind !== 'match' && !q.listen && !q.autoplay && showWord) setTimeout(() => playWord(showWord), 150);
   const bar = lessonEl.querySelector('.bar i');
   if (bar) bar.style.width = `${Math.round((L.done / L.total) * 100)}%`;
-  const go = h('button', { class: `btn ${ok ? '' : 'bad'}`, type: 'button', onclick: () => { L.i++; nextQuestion(); } }, 'Continue');
+  const go = h('button', { class: `btn ${ok || soft ? '' : 'bad'}`, type: 'button', onclick: () => { L.i++; nextQuestion(); } }, 'Continue');
   foot.replaceChildren(go);
-  lessonEl._go = go;
   setTimeout(() => go.focus({ preventScroll: true }), 0);
 }
 
@@ -541,7 +737,7 @@ function onKey(e) {
   if (lessonEl.hidden || !L) return;
   const wrap = lessonEl.querySelector('.lwrap');
   if (e.key === 'Enter') {
-    const go = lessonEl.querySelector('.lfoot .btn:not([disabled])');
+    const go = lessonEl.querySelector('.lfoot .btn:not([disabled]):not(.ghost)');
     if (go && document.activeElement !== go) { go.click(); e.preventDefault(); }
   } else if (/^[1-4]$/.test(e.key) && wrap && wrap._keys) wrap._keys(Number(e.key) - 1);
 }
@@ -551,7 +747,7 @@ window.addEventListener('keydown', onKey);
 function outOfHearts() {
   const spec = L.spec;
   lessonShell(h('div', { class: 'lwrap' }, h('div', { class: 'lbody center' },
-    h('span', { class: 'owl big', html: owlSVG('sad') }),
+    mascot('big', 'sad'),
     h('h1', {}, 'Oh no, no hearts left!'),
     h('p', {}, 'That’s okay. Every mistake helps you learn. Have another go!')),
   h('div', { class: 'lfoot two' },
@@ -576,10 +772,11 @@ function finishLesson() {
   const unitFinished = spec.kind === 'unit' && unitDone(spec.unit.id) === LESSONS_PER_UNIT && spec.lessonNo === LESSONS_PER_UNIT;
   const goal = xpToday() >= state.settings.goal && xpToday() - L.xp < state.settings.goal;
   lessonShell(h('div', { class: 'lwrap' }, h('div', { class: 'lbody center done' },
-    h('span', { class: 'owl big', html: owlSVG() }),
+    mascot('big'),
     h('h1', {}, perfect ? 'Τέλεια! Perfect!' : `Μπράβο${state.name ? ', ' + state.name : ''}!`),
     unitFinished ? h('p', { class: 'cheer' }, `You finished the “${spec.unit.title}” unit! 🎉`) : null,
     goal ? h('p', { class: 'cheer' }, 'You reached your daily goal! 🎯') : null,
+    h('div', { class: 'row center wrap' }, L.skills.map((id) => h('span', { class: `skilltag sk-${id}` }, `${skillInfo(id).icon} ${skillInfo(id).title}`))),
     h('div', { class: 'tiles three' },
       tile('⚡', `+${L.xp}`, 'XP earned'),
       tile('🎯', `${acc}%`, 'first-try'),
@@ -594,9 +791,9 @@ function confetti() {
   lessonEl.append(cv);
   const c = cv.getContext('2d');
   const W = (cv.width = innerWidth), H = (cv.height = innerHeight);
-  const cols = ['#1f78d1', '#f2b705', '#ef6f6c', '#2fa36b', '#8a5bd1', '#ffffff'];
-  const bits = Array.from({ length: 110 }, () => ({
-    x: Math.random() * W, y: -20 - Math.random() * H * 0.5, r: 4 + Math.random() * 5, c: cols[Math.floor(Math.random() * cols.length)],
+  const cols = ['#7a4fe0', '#ffd23f', '#ef6fae', '#17a673', '#1b9bd1', '#ffffff'];
+  const bits = Array.from({ length: 130 }, () => ({
+    x: Math.random() * W, y: -20 - Math.random() * H * 0.5, r: 4 + Math.random() * 6, c: cols[Math.floor(Math.random() * cols.length)],
     vy: 2 + Math.random() * 3.5, vx: (Math.random() - 0.5) * 2.5, a: Math.random() * 6,
   }));
   let frames = 0;
@@ -615,7 +812,5 @@ if (!state.onboarded) welcome();
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
-// Show the "recorded voice" tags once recordings and audio files have loaded.
 window.addEventListener('gvf-audio-ready', () => { if (location.hash.startsWith('#/words') && !L) route(); });
-// Re-draw the Learn page once the browser has told us which voices it has.
 if (ttsSupported()) speechSynthesis.addEventListener('voiceschanged', () => { if ((location.hash || '#/learn').startsWith('#/learn') && !L) route(); });
