@@ -200,38 +200,77 @@ export function lev(a, b) {
   return d[a.length][b.length];
 }
 
-// Kind to a child: ignores accents, final-sigma and one or two slips in the word.
-// The little word counts too: "ο μπαμπάς" needs the "ο". Returns true, false, or 'noArticle' (the word was
-// heard but not its little word), so the app can tell her what is missing.
+// ---- matching by SOUND ----
+// The recogniser may write the same Greek sound in several ways (ο / ω, η / ι / υ / ει / οι, αι / ε, μπ / β ...)
+// or even in Latin letters, so words are compared by how they sound, not by how they are spelled.
+const PH_DIGRAPH = [['αι', 'e'], ['ει', 'i'], ['οι', 'i'], ['υι', 'i'], ['ου', 'u'], ['μπ', 'b'], ['ντ', 'd'], ['γκ', 'g'], ['γγ', 'g'], ['τσ', 'c'], ['τζ', 'j']];
+const PH_SINGLE = { α: 'a', β: 'v', γ: 'g', δ: 'd', ε: 'e', ζ: 'z', η: 'i', θ: 't', ι: 'i', κ: 'k', λ: 'l', μ: 'm', ν: 'n', ξ: 'x', ο: 'o', π: 'p', ρ: 'r', σ: 's', τ: 't', υ: 'i', φ: 'f', χ: 'h', ψ: 'q', ω: 'o' };
+const PH_LATIN = [['ou', 'u'], ['oo', 'u'], ['mp', 'b'], ['nt', 'd'], ['th', 't'], ['ee', 'i'], ['ei', 'i'], ['oi', 'i'], ['ai', 'e'], ['ph', 'f'], ['kh', 'h'], ['ch', 'h'], ['gk', 'g'], ['ts', 'c'], ['dz', 'j'], ['ks', 'x'], ['ps', 'q'], ['y', 'i'], ['w', 'v']];
+export function phon(s) {
+  let t = norm(s).replace(/γι(?=[αοωε])/g, 'y'); // για, γιο ... sound like "ya", "yo" (y becomes i below, like the Latin spelling)
+  for (const [g, p] of PH_DIGRAPH) t = t.split(g).join(p);
+  t = Array.from(t).map((c) => PH_SINGLE[c] || c).join('');
+  for (const [l, p] of PH_LATIN) t = t.split(l).join(p);
+  return t;
+}
+
+// Kind to a child: compares by sound, so accents, ο/ω, η/ι/υ and one or two slips in the word don't matter, and a
+// Latin-letter transcript works too. The little word counts: "ο μπαμπάς" needs the "ο" (or anything that sounds
+// like it, glued on or not). Returns true, false, or 'noArticle' (the word was heard but not its little word), so
+// the app can say what is missing.
 export function judgeSpeech(alts, w) {
-  const target = norm(w.el);
-  if (!target) return false;
-  const tol = target.length <= 3 ? 0 : target.length <= 7 ? 1 : 2;
-  const nounOk = (a) => [a, ...a.split(/\s+/)].some((tok) => {
-    const t = norm(tok);
-    return t && (t === target || t.includes(target) || lev(t, target) <= tol);
-  });
-  const hasNoun = alts.filter(nounOk);
-  if (!hasNoun.length) return false;
-  const art = norm(w.art || '');
-  if (!art) return true;
-  const artOk = (a) => a.split(/\s+/).some((tok) => norm(tok) === art) || norm(a).startsWith(art + target.slice(0, 2));
-  return hasNoun.some(artOk) ? true : 'noArticle';
+  const nounP = phon(w.el);
+  if (!nounP) return false;
+  const artP = phon(w.art || '');
+  const tol = nounP.length <= 3 ? 0 : nounP.length <= 6 ? 1 : 2;
+  const otherArts = ['ο', 'η', 'το', 'οι', 'τα'].map(phon).filter((x) => x !== artP);
+  let nounHeard = false, wrongArt = false;
+  for (const a of alts) {
+    const toks = a.split(/\s+/).map(phon).filter(Boolean);
+    const all = toks.join('');
+    let noun = false, art = false;
+    toks.forEach((t, i) => {
+      if (lev(t, nounP) <= tol) {
+        noun = true;
+        const before = toks.slice(0, i);
+        if (before.some((x) => x === artP)) art = true;
+        else if (artP && before.some((x) => otherArts.includes(x))) wrongArt = true; // e.g. "η μπαμπάς" for "ο μπαμπάς"
+      }
+      // the little word glued onto the word: "ομπαμπάς"
+      // (only if cutting the little word off makes it a BETTER match: γιαγιά itself starts with the sound of η)
+      if (artP && t.length > artP.length && t.startsWith(artP) && lev(t.slice(artP.length), nounP) <= tol && lev(t.slice(artP.length), nounP) < lev(t, nounP)) { noun = true; art = true; }
+    });
+    if (!noun && all.includes(nounP)) { noun = true; art = !!artP && all.startsWith(artP); } // the word split over several tokens
+    if (noun && (art || !artP)) return true;
+    if (noun) nounHeard = true;
+  }
+  if (wrongArt) return 'wrongArticle';
+  return nounHeard ? 'noArticle' : false;
 }
 
 // ---------- tiny sound effects (no files needed) ----------
 let ctx = null;
-export function sfx(kind) {
-  if (!state.settings.sound) return;
+// Wake the sound system up. Call it from a tap, so a sound can play later (after the microphone has listened).
+export function unlockAudio() {
   try {
     ctx ||= new (window.AudioContext || window.webkitAudioContext)();
     if (ctx.state === 'suspended') ctx.resume();
+  } catch { /* no audio context available */ }
+}
+export function sfx(kind) {
+  if (!state.settings.sound) return;
+  try {
+    unlockAudio();
+    if (!ctx) return;
     const notes = {
       ok: [[660, 0], [880, 0.09]],
       bad: [[220, 0], [165, 0.12]],
       tap: [[520, 0]],
       done: [[523, 0], [659, 0.12], [784, 0.24], [1046, 0.36]],
+      // a bright, bell-like ding for a word pronounced correctly: two high notes that ring on
+      ding: [[1319, 0], [1976, 0.07], [2637, 0.14]],
     }[kind] || [];
+    const len = kind === 'done' ? 0.3 : kind === 'ding' ? 0.7 : 0.18;
     for (const [f, at] of notes) {
       const o = ctx.createOscillator();
       const g = ctx.createGain();
@@ -239,11 +278,11 @@ export function sfx(kind) {
       o.frequency.value = f;
       const t0 = ctx.currentTime + at;
       g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(0.16, t0 + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + (kind === 'done' ? 0.3 : 0.18));
+      g.gain.exponentialRampToValueAtTime(kind === 'ding' ? 0.22 : 0.16, t0 + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + len);
       o.connect(g).connect(ctx.destination);
       o.start(t0);
-      o.stop(t0 + 0.35);
+      o.stop(t0 + len + 0.05);
     }
   } catch { /* no audio context available */ }
 }

@@ -43,9 +43,13 @@ with the right Greek gender (Αυτός / Αυτή / Αυτό …), plus some ha
 **Speaking** is part of every Say-it task. After a correct answer she must say the word out loud
 before Continue unlocks. On an Android tablet with Chrome the browser listens through the
 microphone and checks the word, and it needs an internet connection because Chrome sends the audio to
-Google to be recognised. She gets two tries, and the check ignores accents and small slips in the word, but
-the little word has to be there: for "ο μπαμπάς", saying just "μπαμπάς" gets "Nearly! Say the little word too".
-If recognition
+Google to be recognised. The check compares by **sound**, not spelling, so accents, ο written as ω, η / ι / υ / ει / οι,
+small slips in the word, and even a transcript in Latin letters all count. The screen always shows what the
+microphone heard ("I heard “…”"). The little word has to be there: for "ο μπαμπάς", saying just "μπαμπάς" gets
+"Nearly! Say the little word too", and a wrong little word gets "Check the little word". A tiny word like "ο" is
+easy for a microphone to miss, so if it hears the word itself on a second try, she is trusted and passes.
+**A correct answer plays a bright happy ding** (never a "wrong" sound). Android and Chrome also play their own
+short beeps when listening starts and stops, which an app can't turn off. If recognition
 isn't available she records herself, hears herself next to the real word, and rates herself. If the
 microphone is blocked, the app carries on without it. Speaking never costs a heart. A grown-up can switch
 it off under Me → Sound, and then Say-it tasks are tap-only.

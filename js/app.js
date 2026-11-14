@@ -5,7 +5,7 @@ import {
 } from './store.js';
 import {
   initAudio, playWord, stopAudio, sfx, greekVoices, ttsSupported, hasRecording, hasFile,
-  canRecord, startRecording, stopRecording, saveRecording, deleteRecording, canListen, listenOnce, judgeSpeech, lev,
+  canRecord, startRecording, stopRecording, saveRecording, deleteRecording, canListen, listenOnce, judgeSpeech, lev, unlockAudio,
 } from './audio.js';
 import { buildLesson, introWords, SKILLS } from './lesson.js';
 
@@ -673,13 +673,15 @@ function renderQuestion(q) {
 // Say-it task. On Android Chrome the browser listens and judges the word. If recognition is not
 // available the child records herself, hears herself next to the real word, and rates herself.
 function speechUI(w, { area, status, onResult, onBlocked }) {
-  let tries = 0, finished = false;
-  const finish = (ok) => {
+  let tries = 0, finished = false, nounHeard = false;
+  const finish = (ok, info = {}) => {
     if (finished) return;
     finished = true;
     const rate = area.querySelector('.speak-after');
     if (rate) rate.hidden = true; // the self-rating buttons are done with
-    onResult(ok);
+    if (ok) sfx('ding');          // a bright, happy ding for a word said right (never a "wrong" sound here)
+    if (info.msg) status.textContent = info.msg;
+    onResult(ok, info);
   };
   const blocked = () => {
     micBlocked = true;
@@ -692,16 +694,27 @@ function speechUI(w, { area, status, onResult, onBlocked }) {
     const mic = h('button', { class: 'mic', type: 'button', 'aria-label': 'Tap and say the word' }, '🎤');
     area.replaceChildren(mic);
     mic.onclick = async () => {
+      unlockAudio(); // so the ding can play after the microphone has finished
       stopAudio(); mic.classList.add('live'); status.textContent = 'Listening… say it now!';
       try {
         const alts = await listenOnce();
         mic.classList.remove('live');
+        const heard = alts[0] ? `I heard “${alts[0]}”. ` : '';
         const verdict = judgeSpeech(alts, w);
-        if (verdict === true) { finish(true); return; }
+        if (verdict === true) { finish(true, { msg: `You said it! 🎉 ${heard}`.trim() }); return; }
         tries++;
+        if (verdict === 'noArticle') nounHeard = true;
+        // The microphone often can't catch a tiny word like "ο". Once it has heard the word itself on a second go,
+        // trust her rather than leave her stuck.
+        if (tries >= 2 && nounHeard) {
+          finish(true, { lenient: true, msg: `Well done! ${heard}The little word is hard for me to catch, so I trust you! 🎉` });
+          return;
+        }
         status.textContent = verdict === 'noArticle'
-          ? `Nearly! Say the little word too: “${label(w)}”.`
-          : alts[0] ? `I heard “${alts[0]}”. Try again!` : 'I didn’t catch that. Try again!';
+          ? `${heard}Nearly! Say the little word too: “${label(w)}”.`
+          : verdict === 'wrongArticle'
+            ? `${heard}Nearly! Check the little word: “${label(w)}”.`
+            : alts[0] ? `${heard}Try again!` : 'I didn’t catch that. Try again!';
         if (tries >= 2) finish(false);
       } catch (err) {
         mic.classList.remove('live');
@@ -791,8 +804,8 @@ function addSpeechConfirm(q, foot) {
   const unlock = (msg) => { status.textContent = msg; go.disabled = false; go.focus({ preventScroll: true }); };
   speechUI(w, {
     area, status,
-    onResult: (ok) => {
-      if (ok) { L.xp += 5; unlock('You said it! 🎉'); } else unlock('Nice try! You’ll get another go at this one.');
+    onResult: (ok, info = {}) => {
+      if (ok) { L.xp += 5; unlock(info.msg || 'You said it! 🎉'); } else unlock('Nice try! You’ll get another go at this one.');
     },
     onBlocked: () => unlock('No microphone, so we’ll carry on.'),
   });
@@ -883,7 +896,7 @@ function recordSpeak(q, ok) {
     if (ok) { s.ok++; s.s = Math.min(5, s.s + 1); } else s.bad++;
   }
   L.done++;
-  if (ok) { L.firstTry++; L.xp += 10; sfx('ok'); } else L.xp += 3;
+  if (ok) { L.firstTry++; L.xp += 10; } else L.xp += 3; // the happy ding already played when it was said right
   save();
 }
 
