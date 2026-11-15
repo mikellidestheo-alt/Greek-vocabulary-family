@@ -88,6 +88,10 @@ Me → Spelling says which of these a device can do.
 
 ### Rewards
 
+Every finished lesson shows its **first-try accuracy** (for example 92%) above it on the Learn page, green from 90%,
+amber from 70%, pink below that. It keeps her best score for that lesson, so replaying can raise it.
+
+
 XP, a daily streak, a daily goal ring, 5 hearts per lesson, confetti, and a word-strength
 system, so tricky words come back more often ("Practise my tricky words").
 

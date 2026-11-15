@@ -164,7 +164,9 @@ function viewLearn() {
           const isOpen = unlocked(i);
           const isCurrent = isOpen && !isDone && k === done;
           const offset = [0, 2.4, 3.6, 2.4][k % 4];
-          return h('div', { class: 'node-row', style: `transform:translateX(${offset}rem)` },
+          const pct = state.units[u.id] && state.units[u.id].acc ? state.units[u.id].acc[k + 1] : null;
+          return h('div', { class: `node-row ${pct != null ? 'has-acc' : ''}`, style: `transform:translateX(${offset}rem)` },
+            pct != null ? accBadge(pct) : null,
             h('button', {
               type: 'button', class: `node ${isDone ? 'done' : ''} ${isCurrent ? 'current' : ''} ${isOpen ? '' : 'locked'}`,
               disabled: !isOpen, 'aria-label': `${u.title}, lesson ${k + 1}${isDone ? ', completed' : isOpen ? '' : ', locked'}`,
@@ -179,7 +181,8 @@ function viewLearn() {
     h('div', { class: 'banner' }, h('span', { class: 'trophy' }, '🏆'),
       h('div', {}, h('div', { class: 'kicker' }, 'Final challenge'), h('h2', {}, 'Whole family mix'),
         h('div', { class: 'small' }, 'Every word, tricky ones first'))),
-    h('div', { class: 'path' }, h('div', { class: 'node-row' },
+    h('div', { class: 'path' }, h('div', { class: `node-row ${state.mixAcc != null ? 'has-acc' : ''}` },
+      state.mixAcc != null ? accBadge(state.mixAcc) : null,
       h('button', {
         type: 'button', class: `node big ${allDone || state.settings.unlockAll ? 'current' : 'locked'}`,
         disabled: !(allDone || state.settings.unlockAll), 'aria-label': 'Whole family mix',
@@ -187,6 +190,9 @@ function viewLearn() {
       }, allDone || state.settings.unlockAll ? '🏆' : '🔒')))));
   return root;
 }
+
+// the first-try accuracy of a finished lesson, shown above its star
+const accBadge = (pct) => h('span', { class: `acc ${pct >= 90 ? 'hi' : pct >= 70 ? 'mid' : 'lo'}`, 'aria-label': `${pct} percent right first time`, 'data-acc': pct }, `${pct}%`);
 
 // ---------- Words ----------
 function viewWords() {
@@ -1059,14 +1065,19 @@ function finishLesson() {
   if (perfect) L.xp += 10;
   addXp(L.xp);
   touchStreak();
+  const total = L.firstTry + L.mistakes;
+  const acc = total ? Math.round((L.firstTry / total) * 100) : 100;
   if (spec.kind === 'unit') {
     const u = (state.units[spec.unit.id] ||= { done: 0 });
     if (spec.lessonNo === u.done + 1) u.done = spec.lessonNo;
+    // the best first-try score for each lesson, shown above it on the home screen
+    const best = (u.acc ||= {});
+    best[spec.lessonNo] = Math.max(best[spec.lessonNo] || 0, acc);
+  } else if (spec.kind === 'mix') {
+    state.mixAcc = Math.max(state.mixAcc || 0, acc);
   }
   save();
   sfx('done');
-  const total = L.firstTry + L.mistakes;
-  const acc = total ? Math.round((L.firstTry / total) * 100) : 100;
   const unitFinished = spec.kind === 'unit' && unitDone(spec.unit.id) === LESSONS_PER_UNIT && spec.lessonNo === LESSONS_PER_UNIT;
   const goal = xpToday() >= state.settings.goal && xpToday() - L.xp < state.settings.goal;
   lessonShell(h('div', { class: 'lwrap' }, h('div', { class: 'lbody center done' },
