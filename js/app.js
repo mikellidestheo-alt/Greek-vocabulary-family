@@ -149,13 +149,17 @@ function viewLearn() {
   const unlocked = (i) => state.settings.unlockAll || i <= completed;
   UNITS.forEach((u, ui) => {
     const done = unitDone(u.id);
+    // the unit's total: the average of its lessons' best scores, once all of them have one
+    const accs = Array.from({ length: LESSONS_PER_UNIT }, (_, k) => (state.units[u.id] && state.units[u.id].acc || {})[k + 1]);
+    const unitPct = accs.every((x) => x != null) ? Math.round(accs.reduce((n, x) => n + x, 0) / accs.length) : null;
     root.append(h('section', { class: 'unit', style: `--uc:${u.color}; --on:${u.ink || '#fff'}` },
       h('div', { class: 'banner' },
         wordAvatar(word(u.icon), 60),
         h('div', {},
           h('div', { class: 'kicker' }, `Unit ${ui + 1}`),
           h('h2', {}, u.title),
-          h('div', { class: 'small' }, `${u.words.length} words`)),
+          h('div', { class: 'small' }, `${u.words.length} words`),
+          unitPct != null ? h('div', { class: 'unit-total' }, h('span', {}, 'Unit total'), accBadge(unitPct)) : null),
         h('a', { class: 'banner-btn', href: '#/words', 'aria-label': `See the words in ${u.title}`, onclick: () => { try { sessionStorage.setItem('gvf.jump', u.id); } catch { /* ignore */ } } }, '📖')),
       h('div', { class: 'path' },
         Array.from({ length: LESSONS_PER_UNIT }, (_, k) => {
