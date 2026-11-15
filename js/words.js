@@ -32,10 +32,12 @@ const MUM = { shape: 'cat', fur: 'fuzzy', c: '#ef6fae', ec: '#7ed321', mouth: 't
 const DAD = { shape: 'blob', fur: 'plush', c: '#4a90e2', ec: '#f5d142', mouth: 'open', teeth: 'buck', acc: ['stache', 'tie'], tieC: '#e2554f' };
 const PAPPOUS = { shape: 'round', fur: 'fuzzy', c: '#cfc9dc', ec: '#8dd0e8', mouth: 'open', teeth: 'gap', acc: ['glasses', 'brows', 'stache', 'cane'], age: 'elder' };
 const YIAYIA = { shape: 'round', fur: 'plush', c: '#b78be6', ec: '#7ed321', mouth: 'open', teeth: 'gap', acc: ['glasses', 'bun', 'scarf'], age: 'elder', scarfC: '#f5a623' };
-const UNCLE = { shape: 'tall', fur: 'tie', c: '#f08c3c', c2: '#e0558f', c3: '#f5d04a', ec: '#7ed321', mouth: 'open', teeth: 'crooked', acc: ['beard', 'cap'], capC: '#2d7dd2' };
+const UNCLE = { shape: 'tall', fur: 'tie', c: '#35b9c9', c2: '#2f6fd8', c3: '#a6e05a', ec: '#f59a23', mouth: 'open', teeth: 'buck', acc: ['beard', 'glasses'] };
 const AUNT = { shape: 'bunny', fur: 'split', c: '#caa6f2', c2: '#9b2c63', ec: '#2fb36d', mouth: 'open', teeth: 'crooked', acc: ['earrings', 'lashes'] };
 const BOY = { shape: 'horn', fur: 'fuzzy', c: '#43b86a', ec: '#f5d142', mouth: 'tongue', teeth: 'fangs', acc: ['tuft'], age: 'child' };
 const GIRL = { shape: 'blob', fur: 'plush', c: '#ff9cc8', ec: '#5fb7f0', mouth: 'open', teeth: 'buck', acc: ['pigtails'], age: 'child' };
+const NEPHEW = { shape: 'round', fur: 'fuzzy', c: '#ff8a6b', ec: '#f5d142', mouth: 'tongue', teeth: 'fangs', acc: ['tuft'], age: 'child' };
+const NIECE = { shape: 'cat', fur: 'plush', c: '#f7a8d8', ec: '#2fb36d', mouth: 'open', teeth: 'gap', acc: ['bow', 'lashes'], age: 'child' };
 const BOY_CAP = { shape: 'cat', fur: 'fuzzy', c: '#f2b630', ec: '#7ed321', mouth: 'tongue', teeth: 'crooked', acc: ['cap'], age: 'child', capC: '#d94f4f' };
 const GIRL_BAND = { shape: 'bunny', fur: 'plush', c: '#8e7be0', ec: '#f5d142', mouth: 'open', teeth: 'gap', acc: ['bow'], age: 'child' };
 
@@ -82,9 +84,9 @@ export const WORDS = [
   { id: 'theia', el: 'θεία', art: 'η', tr: 'THEE-a', en: 'aunt', pair: 'theios',
     hint: 'Also used for great-aunts. There is no προ- for aunts and uncles!', pic: AUNT, picEx: true },
   { id: 'anipsios', el: 'ανιψιός', art: 'ο', tr: 'a-nip-SYOS', en: 'nephew', pair: 'anipsia',
-    hint: 'Your brother’s or sister’s son.', pic: { figs: [UNCLE, BOY] } },
+    hint: 'Your brother’s or sister’s son.', pic: NEPHEW },
   { id: 'anipsia', el: 'ανιψιά', art: 'η', tr: 'a-nip-SYA', en: 'niece', pair: 'anipsios',
-    hint: 'Your brother’s or sister’s daughter.', pic: { figs: [AUNT, GIRL] } },
+    hint: 'Your brother’s or sister’s daughter.', pic: NIECE },
 
   // ---------------- Cousins ----------------
   { id: 'xaderfos', el: 'ξάδερφος', alt: ['ξάδελφος'], poss: 'ξάδερφός', altPoss: ['ξάδελφός'], art: 'ο', tr: 'KSA-ther-fos', en: 'male cousin', pair: 'xaderfi',
