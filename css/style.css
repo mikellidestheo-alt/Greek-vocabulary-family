@@ -149,6 +149,11 @@ a { color: var(--purple); }
 .node.big { width: 5.8rem; height: 5.8rem; font-size: 2.5rem; }
 .unit-total { display: flex; align-items: center; gap: .45rem; margin-top: .3rem; font-weight: 900; font-size: .85rem; }
 .unit-total .acc { font-size: .85rem; padding: .05rem .55rem; }
+.topics { display: flex; gap: .5rem; padding: .3rem; margin: .9rem auto .2rem; background: #f1e9ff; border-radius: 999px; width: fit-content; max-width: 100%; }
+.topic-tab { border: 0; background: transparent; border-radius: 999px; padding: .6rem 1.3rem; font-weight: 900; font-size: 1.05rem; color: #7a55e8; display: inline-flex; align-items: center; gap: .45rem; }
+.topic-tab.on { background: #fff; box-shadow: 0 .18rem 0 var(--line); color: var(--purple); }
+.topic-tab .ti { font-size: 1.3rem; }
+h2.topic-head { margin: 1.2rem 0 .2rem; font-size: 1.5rem; color: #5b3fc0; }
 .node-row.has-acc { flex-direction: column; gap: .3rem; }
 .acc { padding: .12rem .65rem; border-radius: 999px; font-weight: 900; font-size: .9rem; background: #fff; border: .14rem solid var(--line); box-shadow: 0 .15rem 0 var(--line); }
 .acc.hi { color: #12875f; border-color: #8ae6c8; box-shadow: 0 .15rem 0 #8ae6c8; }

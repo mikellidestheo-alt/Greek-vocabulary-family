@@ -248,10 +248,13 @@ export function phon(s) {
 // The little word counts: "ο μπαμπάς" needs the "ο" (or anything that sounds like it, glued on or not).
 // Returns true, false, 'noArticle' (the word was heard but not its little word) or 'wrongArticle'.
 export function judgeSpeech(alts, w) {
+  // the recogniser often writes a number as digits: "15"
+  if (w.num && alts.some((a) => a.replace(/\D/g, '') === String(w.num) && !/[\p{L}]/u.test(a))) return true;
   const nounP = phon(w.el);
   if (!nounP) return false;
   const artP = phon(w.art || '');
-  const tol = nounP.length <= 3 ? 0 : nounP.length <= 6 ? 1 : 2;
+  // number words are strict: 17 and 19 (δεκαεπτά, δεκαεννέα) differ by two sounds, and every number from 11 to 19 contains "δεκα"
+  const tol = w.num ? (nounP.length <= 5 ? 0 : 1) : nounP.length <= 3 ? 0 : nounP.length <= 6 ? 1 : 2;
   const keys = [{ p: nounP, tol }, ...(w.heardAs || []).map((a) => ({ p: phon(a), tol: 1 }))].filter((k) => k.p);
   const dist = (t) => Math.min(...keys.map((k) => lev(t, k.p)));
   const nounIs = (t) => keys.some((k) => lev(t, k.p) <= k.tol);
@@ -275,7 +278,7 @@ export function judgeSpeech(alts, w) {
         if (nounIs(rest) && dist(rest) < dist(t)) { noun = true; art = true; }
       }
     });
-    if (!noun && keys.some((k) => all.includes(k.p))) { noun = true; art = !!artP && all.startsWith(artP); } // the word split over several tokens
+    if (!noun && keys.some((k) => (w.num ? lev(all, k.p) <= k.tol : all.includes(k.p)))) { noun = true; art = !!artP && all.startsWith(artP); } // the word split over several tokens
     if (noun && (art || !artP)) return true;
     if (noun) nounHeard = true;
   }

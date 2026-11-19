@@ -17,7 +17,7 @@ const defaults = () => ({
     translation: { ok: 0, total: 0 }, spelling: { ok: 0, total: 0 },
     pronunciation: { ok: 0, total: 0 }, sentences: { ok: 0, total: 0 },
   },
-  settings: { translit: true, sound: true, speaking: true, inputMode: 'type', rate: 0.85, voice: '', unlockAll: false, goal: 100 },
+  settings: { translit: true, sound: true, speaking: true, inputMode: 'type', topic: 'family', rate: 0.85, voice: '', unlockAll: false, goal: 100 },
 });
 
 export function dayKey(d = new Date()) {

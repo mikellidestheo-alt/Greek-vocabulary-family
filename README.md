@@ -11,7 +11,7 @@ Plain HTML, CSS and JavaScript. There is nothing to install and no build step.
 
 ## What's in it
 
-- **6 units, 25 words**: Mum & Dad, Brothers & Sisters, Grandparents, Aunts & Uncles,
+- **6 family units, 25 words** (plus the Numbers 10–20 section below): Mum & Dad, Brothers & Sisters, Grandparents, Aunts & Uncles,
   Cousins, and the **προ-** ("great-") prefix. It has male and female forms
   (θείος/θεία, ξάδερφος/ξαδέρφη) and a few plurals (γονείς, ξαδέρφια).
   Only grandparents get **προ-** (προπάππους, προγιαγιά). Great-uncles and great-aunts are just θείος/θεία.
@@ -24,6 +24,19 @@ Plain HTML, CSS and JavaScript. There is nothing to install and no build step.
   each correct pair reveals its monster. The picture questions don't repeat a monster,
   because there the monsters are the question.
 - **3 lessons per unit**, getting harder as she learns, then a final "whole family mix".
+
+### A second section: Numbers 10–20
+
+The Learn page has two sections, **👨‍👩‍👧 Family** and **🔢 Numbers 10–20**, with a switch at the top. Numbers have nothing to do
+with family, so the section has its own lessons, its own "Four ways to practise" and tricky-words practice, and its own
+final **Number mix**; wrong answers and sentences never come from the other section. It has two units, **10 to 15** and
+**16 to 20**, with 3 lessons each: δέκα, έντεκα, δώδεκα, δεκατρία, δεκατέσσερα, δεκαπέντε, δεκαέξι, δεκαεπτά, δεκαοκτώ, δεκαεννέα, είκοσι.
+The same plush monsters hold up each number on a yellow badge, and all four skills work as they do for family words:
+translate (including "Which number is this?" picture questions), spell (type or write the number), say it, and
+sentences ("Έχω δεκαπέντε μήλα.", "Είμαι έντεκα χρονών."). Numbers have no little word, so nothing asks for ο / η / το.
+Everyday spellings are accepted (δεκαεφτά, δεκαοχτώ, δεκαεννιά, ένδεκα). Speaking is stricter than for family words, so
+17 and 19 can't be mixed up and "δεκα" inside a bigger number doesn't pass as ten, and a transcript written as digits
+("15") counts.
 
 ### Four skills, in every lesson
 
@@ -129,7 +142,7 @@ In the repository go to **Settings → Pages → Build and deployment → Source
 ## Adding or changing words and sentences
 
 Everything lives in [`js/words.js`](js/words.js). Copy an existing word, change the fields,
-and add its `id` to a unit. Hand-written sentences go in `HAND_SENTENCES`.
+and add its `id` to a unit. A new section is a new entry in `TOPICS` plus units with that `topic`; number words are made with `num(...)`. Hand-written sentences go in `HAND_SENTENCES`.
 The comments at the top explain each field.
 Run `node scripts/validate-words.mjs` to check for mistakes. It also runs on every deploy,
 so a typo can't break the live site.

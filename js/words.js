@@ -20,6 +20,8 @@
 //          (ξάδερφος -> ξάδερφός μου)
 //    pic   what the little monster looks like (see avatars.js)
 //    picEx true if the monster is distinctive enough for picture questions
+//    topic (optional) which section of the app the word belongs to ('family' unless set)
+//    num   (numbers only) the number itself. These words have no little word (art is '')
 //
 //  Each unit lists the word ids it teaches, in order.
 //
@@ -40,6 +42,12 @@ const NEPHEW = { shape: 'round', fur: 'fuzzy', c: '#ff8a6b', ec: '#f5d142', mout
 const NIECE = { shape: 'cat', fur: 'plush', c: '#f7a8d8', ec: '#2fb36d', mouth: 'open', teeth: 'gap', acc: ['bow', 'lashes'], age: 'child' };
 const BOY_CAP = { shape: 'cat', fur: 'fuzzy', c: '#f2b630', ec: '#7ed321', mouth: 'tongue', teeth: 'crooked', acc: ['cap'], age: 'child', capC: '#d94f4f' };
 const GIRL_BAND = { shape: 'bunny', fur: 'plush', c: '#8e7be0', ec: '#f5d142', mouth: 'open', teeth: 'gap', acc: ['bow'], age: 'child' };
+
+// a number word: no little word, and a monster holding up the number
+function num(id, n, el, tr, en, extra) {
+  const { monster, ...rest } = extra;
+  return { id, el, art: '', tr, en, topic: 'numbers', num: n, pic: { figs: [monster], badge: String(n) }, picEx: true, ...rest };
+}
 
 export const WORDS = [
   // ---------------- Mum & Dad ----------------
@@ -103,6 +111,21 @@ export const WORDS = [
     hint: 'Grandfather + προ-.', pic: { figs: [PAPPOUS], badge: 'προ-' }, picEx: true },
   { id: 'progiagia', el: 'προγιαγιά', art: 'η', tr: 'pro-ya-YA', en: 'great-grandmother', pair: 'propappous',
     hint: 'Grandmother + προ-.', pic: { figs: [YIAYIA], badge: 'προ-' }, picEx: true },
+
+  // ---------------- Numbers 10 to 20 (a different section: nothing to do with family) ----------------
+  // The same plush monsters hold up each number. Numbers have no little word (art is '').
+  // 13 and 14 are given in the form used for counting (neuter), which is also what goes with neuter nouns like μήλα.
+  num('ten', 10, 'δέκα', 'THE-ka', 'ten', { hint: 'Like “deca-” in decade or decathlon.', monster: DAD }),
+  num('eleven', 11, 'έντεκα', 'EN-de-ka', 'eleven', { alt: ['ένδεκα'], heardAs: ['ένδεκα'], hint: 'A special word. Also written ένδεκα. You are this old!', monster: GIRL }),
+  num('twelve', 12, 'δώδεκα', 'THO-the-ka', 'twelve', { hint: 'Also a special word. Think of a dodecagon: 12 sides.', monster: BOY_CAP }),
+  num('thirteen', 13, 'δεκατρία', 'the-ka-TREE-a', 'thirteen', { hint: 'δέκα + τρία (3). From 13 up, the words are δεκα + the number.', monster: MUM }),
+  num('fourteen', 14, 'δεκατέσσερα', 'the-ka-TE-se-ra', 'fourteen', { hint: 'δέκα + τέσσερα (4). Double σσ!', monster: UNCLE }),
+  num('fifteen', 15, 'δεκαπέντε', 'the-ka-PEN-de', 'fifteen', { hint: 'δέκα + πέντε (5).', monster: GIRL_BAND }),
+  num('sixteen', 16, 'δεκαέξι', 'the-ka-E-ksi', 'sixteen', { hint: 'δέκα + έξι (6). The ξ sounds like “ks”.', monster: BOY }),
+  num('seventeen', 17, 'δεκαεπτά', 'the-ka-ep-TA', 'seventeen', { alt: ['δεκαεφτά'], hint: 'δέκα + επτά (7). Often said and written δεκαεφτά.', monster: AUNT }),
+  num('eighteen', 18, 'δεκαοκτώ', 'the-ka-ok-TO', 'eighteen', { alt: ['δεκαοχτώ'], hint: 'δέκα + οκτώ (8). Often said and written δεκαοχτώ.', monster: PAPPOUS }),
+  num('nineteen', 19, 'δεκαεννέα', 'the-ka-e-NE-a', 'nineteen', { alt: ['δεκαεννιά'], hint: 'δέκα + εννέα (9). Double νν. Often written δεκαεννιά.', monster: YIAYIA }),
+  num('twenty', 20, 'είκοσι', 'EE-ko-si', 'twenty', { hint: 'A brand-new word, not built from the others. Think of an icosahedron: 20 faces.', monster: NIECE }),
 ];
 
 export const UNITS = [
@@ -124,7 +147,21 @@ export const UNITS = [
   { id: 'great', title: 'Great-grandparents', color: '#ffc83d', ink: '#4d3300', icon: 'propappous',
     words: ['pro', 'propappous', 'progiagia'],
     note: 'The prefix προ- means “great”, but only grandparents get it: προ + γιαγιά = προγιαγιά.' },
+  { id: 'num-a', topic: 'numbers', title: 'Numbers 10 to 15', color: '#34b86b', icon: 'fifteen',
+    words: ['ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen'],
+    note: 'δέκα is ten. έντεκα (11) and δώδεκα (12) are special words. From 13 the words are δεκα + the number: δεκα + τρία = δεκατρία.' },
+  { id: 'num-b', topic: 'numbers', title: 'Numbers 16 to 20', color: '#d65bd9', icon: 'twenty',
+    words: ['sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'],
+    note: 'The same pattern: δεκα + έξι = δεκαέξι. Numbers have no little word (no ο, η or το). είκοσι (20) is a brand-new word.' },
 ];
+UNITS.forEach((u) => { u.topic ||= 'family'; });
+
+// The app has sections. Each one has its own lessons, practice and final mix.
+export const TOPICS = [
+  { id: 'family', title: 'Family', icon: '👨‍👩‍👧', mix: ['Whole family mix', 'Every word, tricky ones first'], hello: 'Floufi and the family monsters are ready to learn Greek!' },
+  { id: 'numbers', title: 'Numbers 10–20', icon: '🔢', mix: ['Number mix', 'Every number, tricky ones first'], hello: 'Floufi and the monsters are ready to count in Greek!' },
+];
+export const topicOf = (w) => (w && w.topic) || 'family';
 
 export const LESSONS_PER_UNIT = 3;
 
@@ -150,6 +187,15 @@ const HAND_SENTENCES = [
   { blank: 'gios', el: 'Ο γιος μου κοιμάται.', tr: 'o YOS moo ki-MA-te', en: 'My son is sleeping.' },
   { blank: 'kori', el: 'Η κόρη μου ζωγραφίζει.', tr: 'ee KO-ri moo zo-ghra-FEE-zi', en: 'My daughter is drawing.' },
   { blank: 'progiagia', el: 'Η προγιαγιά μου είναι πολύ γλυκιά.', tr: 'ee pro-ya-YA moo EE-ne po-LEE ghli-KYA', en: 'My great-grandmother is very sweet.' },
+  // numbers
+  { blank: 'ten', el: 'Έχω δέκα δάχτυλα.', tr: 'E-ho THE-ka THA-hti-la', en: 'I have ten fingers.' },
+  { blank: 'eleven', el: 'Είμαι έντεκα χρονών.', tr: 'EE-me EN-de-ka hro-NON', en: 'I am eleven years old.' },
+  { blank: 'eleven', el: 'Η ομάδα έχει έντεκα παίκτες.', tr: 'ee o-MA-tha E-hi EN-de-ka PEK-tes', en: 'The team has eleven players.' },
+  { blank: 'twelve', el: 'Ο χρόνος έχει δώδεκα μήνες.', tr: 'o HRO-nos E-hi THO-the-ka MEE-nes', en: 'The year has twelve months.' },
+  { blank: 'fifteen', el: 'Στην τάξη μου είμαστε δεκαπέντε παιδιά.', tr: 'stin TA-ksi moo EE-ma-ste the-ka-PEN-de pe-THYA', en: 'There are fifteen of us in my class.' },
+  { blank: 'sixteen', el: 'Η αδερφή μου είναι δεκαέξι χρονών.', tr: 'ee a-ther-FEE moo EE-ne the-ka-E-ksi hro-NON', en: 'My sister is sixteen years old.' },
+  { blank: 'eighteen', el: 'Ο ξάδερφός μου είναι δεκαοκτώ χρονών.', tr: 'o KSA-ther-fos moo EE-ne the-ka-ok-TO hro-NON', en: 'My cousin is eighteen years old.' },
+  { blank: 'twenty', el: 'Έχω είκοσι ευρώ.', tr: 'E-ho EE-ko-si ev-RO', en: 'I have twenty euros.' },
 ];
 
 const DEM = {
@@ -162,7 +208,9 @@ export const ART_TR = { ο: 'o', η: 'ee', το: 'to', οι: 'ee', τα: 'ta' };
 // "My … is here.") that follow the right Greek gender, plus any hand-written ones.
 export function sentencesFor(wid) {
   const w = byId.get(wid);
-  if (!w || !w.art) return [];
+  if (!w) return [];
+  if (w.num) return numberSentences(w);
+  if (!w.art) return [];
   const form = w.poss || w.el;
   const d = DEM[w.art], a = ART_TR[w.art];
   const A = w.art.charAt(0).toUpperCase() + w.art.slice(1);
@@ -174,5 +222,19 @@ export function sentencesFor(wid) {
   ].map((s, t) => ({ ...s, t, id: `${wid}-${t}`, blank: wid, form }));
   const hand = HAND_SENTENCES.filter((h) => h.blank === wid)
     .map((h, i) => ({ ...h, t: 3 + i, id: `${wid}-h${i}`, form: h.form || form }));
+  return [...gen, ...hand];
+}
+
+// Numbers have no little word, so they get their own three template sentences (with neuter plural nouns, which
+// is what 13 and 14 need), plus any hand-written ones. The number is always a separate word in the sentence.
+function numberSentences(w) {
+  const form = w.el;
+  const gen = [
+    { el: `Έχω ${form} μήλα.`, tr: `E-ho ${w.tr} MEE-la.`, en: `I have ${w.en} apples.` },
+    { el: `Βλέπω ${form} αστέρια.`, tr: `VLE-po ${w.tr} a-STE-rya.`, en: `I can see ${w.en} stars.` },
+    { el: `Μετράω μέχρι το ${form}.`, tr: `me-TRA-o ME-hri to ${w.tr}.`, en: `I count up to ${w.en}.` },
+  ].map((s, t) => ({ ...s, t, id: `${w.id}-${t}`, blank: w.id, form }));
+  const hand = HAND_SENTENCES.filter((h) => h.blank === w.id)
+    .map((h, i) => ({ ...h, t: 3 + i, id: `${w.id}-h${i}`, form: h.form || form }));
   return [...gen, ...hand];
 }

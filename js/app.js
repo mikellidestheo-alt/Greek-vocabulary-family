@@ -1,4 +1,4 @@
-import { WORDS, UNITS, LESSONS_PER_UNIT, word, label, sentencesFor } from './words.js';
+import { WORDS, UNITS, TOPICS, LESSONS_PER_UNIT, word, label, sentencesFor, topicOf } from './words.js';
 import { avatarSVG, mascotSVG } from './avatars.js';
 import {
   state, save, resetAll, ws, unitDone, addXp, xpToday, touchStreak, liveStreak, bumpSkill, skillPct,
@@ -108,25 +108,35 @@ let micBlocked = false, srBroken = false;
 
 function viewLearn() {
   const root = h('div', { class: 'page learn' });
+  // the app has sections (Family, Numbers 10-20): each has its own lessons, practice and final mix
+  const topic = TOPICS.find((t) => t.id === state.settings.topic) || TOPICS[0];
+  const units = UNITS.filter((u) => u.topic === topic.id);
+  const mixKey = topic.id === 'family' ? 'mixAcc' : `mixAcc_${topic.id}`;
   const streak = liveStreak();
   const goal = state.settings.goal;
   root.append(h('header', { class: 'topbar wide' },
     mascot('hero'),
     h('div', { class: 'greet' },
       h('div', { class: 'hello' }, state.name ? `Γεια σου, ${state.name}!` : 'Γεια σου!'),
-      h('div', { class: 'small' }, 'Floufi and the family monsters are ready to learn Greek!')),
+      h('div', { class: 'small' }, topic.hello)),
     h('div', { class: 'stats' },
       h('span', { class: `chip ${streak ? 'hot' : ''}`, title: 'Day streak' }, `🔥 ${streak}`),
       h('span', { class: 'chip', title: 'Total XP' }, `⚡ ${state.xp}`),
       ring(xpToday(), goal),
       fsAvailable() ? h('button', { id: 'fsbtn', class: 'iconbtn', type: 'button', 'aria-label': 'Toggle full screen', onclick: toggleFullscreen }, inFullscreen() ? '🡼' : '⛶') : null)));
 
+  root.append(h('div', { class: 'topics wide', role: 'tablist', 'aria-label': 'Sections' }, TOPICS.map((t) =>
+    h('button', {
+      type: 'button', role: 'tab', 'aria-selected': t.id === topic.id ? 'true' : 'false', 'data-topic': t.id, class: `topic-tab ${t.id === topic.id ? 'on' : ''}`,
+      onclick: () => { if (t.id === topic.id) return; state.settings.topic = t.id; save(); route(); },
+    }, h('span', { class: 'ti' }, t.icon), t.title))));
+
   // the four skills, each practised in every lesson and also on its own
   root.append(h('section', { class: 'skills wide' },
     h('h2', {}, 'Four ways to practise'),
     h('div', { class: 'skillgrid' }, SKILLS.map((s) => {
       const pct = skillPct(s.id);
-      return h('button', { class: `skill sk-${s.id}`, type: 'button', onclick: () => startLesson({ kind: 'skill', skill: s.id }) },
+      return h('button', { class: `skill sk-${s.id}`, type: 'button', onclick: () => startLesson({ kind: 'skill', skill: s.id, topic: topic.id }) },
         h('span', { class: 'si' }, s.icon),
         h('span', { class: 'st' }, h('b', {}, s.title), h('span', { class: 'small' }, pct == null ? s.desc : `${pct}% right first time`)));
     }))));
@@ -139,15 +149,15 @@ function viewLearn() {
       h('a', { href: '#/record' }, 'Me › Record family voices'), '.'));
   }
 
-  const seen = WORDS.filter((w) => ws(w.id).seen > 0).length;
+  const seen = WORDS.filter((w) => topicOf(w) === topic.id && ws(w.id).seen > 0).length;
   if (seen >= 3) {
-    root.append(h('button', { class: 'pill wide', type: 'button', onclick: () => startLesson({ kind: 'practice' }) }, '💪 Practise my tricky words'));
+    root.append(h('button', { class: 'pill wide', type: 'button', onclick: () => startLesson({ kind: 'practice', topic: topic.id }) }, '💪 Practise my tricky words'));
   }
 
   let node = 0;
-  const completed = UNITS.reduce((n, u) => n + unitDone(u.id), 0);
+  const completed = units.reduce((n, u) => n + unitDone(u.id), 0);
   const unlocked = (i) => state.settings.unlockAll || i <= completed;
-  UNITS.forEach((u, ui) => {
+  units.forEach((u, ui) => {
     const done = unitDone(u.id);
     // the unit's total: the average of its lessons' best scores, once all of them have one
     const accs = Array.from({ length: LESSONS_PER_UNIT }, (_, k) => (state.units[u.id] && state.units[u.id].acc || {})[k + 1]);
@@ -180,17 +190,17 @@ function viewLearn() {
         }))));
   });
 
-  const allDone = completed >= UNITS.length * LESSONS_PER_UNIT;
+  const allDone = completed >= units.length * LESSONS_PER_UNIT;
   root.append(h('section', { class: 'unit final', style: '--uc:#ffc83d; --on:#4d3300' },
     h('div', { class: 'banner' }, h('span', { class: 'trophy' }, '🏆'),
-      h('div', {}, h('div', { class: 'kicker' }, 'Final challenge'), h('h2', {}, 'Whole family mix'),
-        h('div', { class: 'small' }, 'Every word, tricky ones first'))),
-    h('div', { class: 'path' }, h('div', { class: `node-row ${state.mixAcc != null ? 'has-acc' : ''}` },
-      state.mixAcc != null ? accBadge(state.mixAcc) : null,
+      h('div', {}, h('div', { class: 'kicker' }, 'Final challenge'), h('h2', {}, topic.mix[0]),
+        h('div', { class: 'small' }, topic.mix[1]))),
+    h('div', { class: 'path' }, h('div', { class: `node-row ${state[mixKey] != null ? 'has-acc' : ''}` },
+      state[mixKey] != null ? accBadge(state[mixKey]) : null,
       h('button', {
         type: 'button', class: `node big ${allDone || state.settings.unlockAll ? 'current' : 'locked'}`,
-        disabled: !(allDone || state.settings.unlockAll), 'aria-label': 'Whole family mix',
-        onclick: () => startLesson({ kind: 'mix' }),
+        disabled: !(allDone || state.settings.unlockAll), 'aria-label': topic.mix[0],
+        onclick: () => startLesson({ kind: 'mix', topic: topic.id }),
       }, allDone || state.settings.unlockAll ? '🏆' : '🔒')))));
   return root;
 }
@@ -207,7 +217,11 @@ function viewWords() {
       h('label', { class: 'switch' },
         h('input', { type: 'checkbox', checked: state.settings.translit, onchange: (e) => { state.settings.translit = e.target.checked; save(); route(); } }),
         h('span', {}, 'Show how to say it'))));
-  UNITS.forEach((u) => {
+  UNITS.forEach((u, ui) => {
+    if (ui === 0 || u.topic !== UNITS[ui - 1].topic) {
+      const t = TOPICS.find((x) => x.id === u.topic);
+      root.append(h('h2', { class: 'topic-head' }, `${t.icon} ${t.title}`));
+    }
     const words = u.words.map(word);
     const sents = words.flatMap((w) => sentencesFor(w.id).filter((s) => s.t === 0 || s.t >= 3));
     root.append(h('section', { class: 'wunit', id: `u-${u.id}`, style: `--uc:${u.color}` },
@@ -372,7 +386,7 @@ function welcome() {
   const dlg = h('div', { class: 'overlay' }, h('div', { class: 'dialog' },
     mascot('big'),
     h('h1', {}, 'Καλώς ήρθες!'),
-    h('p', {}, 'Welcome! I’m Floufi, and these are the family monsters. Let’s learn the Greek words for all your relatives. What’s your name?'),
+    h('p', {}, 'Welcome! I’m Floufi, and these are the family monsters. Let’s learn the Greek words for all your relatives, and the numbers too. What’s your name?'),
     input,
     h('button', { class: 'btn', type: 'button', onclick: done }, 'Let’s go!')));
   document.body.append(dlg);
@@ -1078,7 +1092,8 @@ function finishLesson() {
     const best = (u.acc ||= {});
     best[spec.lessonNo] = Math.max(best[spec.lessonNo] || 0, acc);
   } else if (spec.kind === 'mix') {
-    state.mixAcc = Math.max(state.mixAcc || 0, acc);
+    const key = (spec.topic || 'family') === 'family' ? 'mixAcc' : `mixAcc_${spec.topic}`;
+    state[key] = Math.max(state[key] || 0, acc);
   }
   save();
   sfx('done');

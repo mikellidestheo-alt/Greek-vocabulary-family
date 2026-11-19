@@ -34,6 +34,18 @@ for (const u of UNITS) {
   if (!ids.has(u.icon)) errors.push(`unit ${u.id}: icon word "${u.icon}" does not exist`);
 }
 for (const w of WORDS) if (!used.has(w.id)) errors.push(`${w.id}: not in any unit`);
+// sections: a unit holds words of one section only, and number words have a number and no little word
+for (const u of UNITS) {
+  for (const id of u.words) {
+    const w = WORDS.find((x) => x.id === id);
+    if (w && (w.topic || 'family') !== (u.topic || 'family')) errors.push(`unit ${u.id} (${u.topic}): word "${id}" belongs to "${w.topic || 'family'}"`);
+  }
+}
+for (const w of WORDS) {
+  if (w.topic === 'numbers' && (!Number.isInteger(w.num) || w.art !== '')) errors.push(`${w.id}: a number word needs an integer "num" and art ''`);
+  if (w.num != null && (!w.pic || !w.pic.badge || String(w.num) !== w.pic.badge)) errors.push(`${w.id}: the monster's badge should show the number ${w.num}`);
+}
+for (const t of ['family', 'numbers']) if (WORDS.filter((w) => (w.topic || 'family') === t && w.picEx).length < 4) errors.push(`section ${t}: needs at least 4 words with picEx`);
 if (WORDS.filter((w) => w.picEx).length < 4) errors.push('need at least 4 words with picEx for picture questions');
 
 // sentences: every sentence must contain the word it is about, spelled as `form`

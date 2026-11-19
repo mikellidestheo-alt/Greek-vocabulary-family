@@ -5,7 +5,7 @@
 //   spelling      write it right: letter tiles, missing letter, correct spelling
 //   pronunciation hear it, stress it, say it out loud
 //   sentences     fill the gap, translate, build a sentence
-import { WORDS, UNITS, word, unitOf, label, sentencesFor, ART_TR } from './words.js';
+import { WORDS, UNITS, word, unitOf, label, sentencesFor, ART_TR, topicOf } from './words.js';
 import { ws } from './store.js';
 
 export const SKILLS = [
@@ -32,16 +32,23 @@ const isLetter = (c) => /\p{L}/u.test(c);
 const strip = (t) => t.replace(/[.;?!,]/g, '');
 let uid = 0;
 
+// Each section of the app has its own words: wrong answers, sentences and mixes never cross over
+// (a number question never offers "grandpa" as an answer).
+const inTopic = (w) => WORDS.filter((x) => topicOf(x) === topicOf(w));
+// words that can be written / said with the word itself being the whole answer: family words with a little word, and numbers
+const hasWord = (w) => !!w.art || !!w.num;
+const lw = (w, text) => (w.art ? text : ''); // text about "its little word" only where there is one
+
 // ---------- fair wrong answers ----------
 function distractors(w, n, { ok = () => true, preferUnit = true } = {}) {
-  const fair = WORDS.filter((x) => x.id !== w.id && !(w.grp && x.grp === w.grp) && x.en !== w.en && ok(x));
+  const fair = inTopic(w).filter((x) => x.id !== w.id && !(w.grp && x.grp === w.grp) && x.en !== w.en && ok(x));
   const home = preferUnit ? fair.filter((x) => unitOf(x.id) === unitOf(w.id)) : [];
   const rest = fair.filter((x) => !home.includes(x));
   return [...sample(home, n), ...sample(rest, n)].slice(0, n);
 }
 const opt = (key, labelText, correct, extra = {}) => ({ key, label: labelText, correct, ...extra });
 // Written answers always include the little word. These are the accepted alternative spellings WITH it.
-const fullAlts = (w) => (w.alt || []).map((a) => `${w.art} ${a}`);
+const fullAlts = (w) => (w.alt || []).map((a) => (w.art ? `${w.art} ${a}` : a));
 const writeBase = (w) => ({ kind: 'write', answer: label(w), alts: fullAlts(w), noun: [w.el, ...(w.alt || [])], art: w.art, say: w });
 
 // ---------- spelling helpers ----------
@@ -99,7 +106,7 @@ function trOptions(w) {
   const correct = trFull(w);
   // right word but the wrong little word (the pronunciation of the article is tested too)
   const wrongArt = w.art ? uniq(ARTICLES.filter((a) => ART_TR[a] !== ART_TR[w.art]).map((a) => trFull(w, a))) : [];
-  const others = WORDS.filter((x) => x.id !== w.id && x.tr !== w.tr && x.art !== '').map((x) => trFull(x));
+  const others = inTopic(w).filter((x) => x.id !== w.id && x.tr !== w.tr && hasWord(x)).map((x) => trFull(x));
   return uniq([
     ...sample(wrongArt, 1),
     ...sample(wrongStress, 1).map((t) => (w.art ? `${ART_TR[w.art]} ${t}` : t)),
@@ -115,7 +122,7 @@ const pickSentence = (w, preferT) => {
   const same = preferT == null ? [] : list.filter((s) => s.t === preferT);
   return (same.length ? same : list)[rnd((same.length ? same : list).length)];
 };
-const sameArtPool = (w) => WORDS.filter((x) => x.id !== w.id && x.art && x.art === w.art && x.id !== 'pro' && x.en !== w.en && !(w.grp && x.grp === w.grp));
+const sameArtPool = (w) => inTopic(w).filter((x) => x.id !== w.id && (w.num ? !!x.num : x.art && x.art === w.art) && x.id !== 'pro' && x.en !== w.en && !(w.grp && x.grp === w.grp));
 
 // sentences where the word comes right after its little word: "Αυτός είναι ο θείος μου."
 function artGapCandidates(w) {
@@ -128,7 +135,7 @@ function artGapCandidates(w) {
 }
 
 function otherTranslations(w, s, n = 3) {
-  const cands = sample(WORDS.filter((x) => x.id !== w.id && x.art && !(w.grp && x.grp === w.grp)), 12)
+  const cands = sample(inTopic(w).filter((x) => x.id !== w.id && hasWord(x) && !(w.grp && x.grp === w.grp)), 12)
     .map((x) => pickSentence(x, s.t)).filter(Boolean);
   const seen = new Set([s.en]);
   const out = [];
@@ -158,7 +165,7 @@ const makers = {
     options: shuffle([opt(w.id, label(w), true, { say: w }), ...distractors(w, 3).map((d) => opt(d.id, label(d), false, { say: d }))]),
   }),
   'pic-el': (w) => ({
-    kind: 'choice', title: 'Who is this?', pic: w, say: w, optClass: 'greek',
+    kind: 'choice', title: w.num ? 'Which number is this?' : 'Who is this?', pic: w, say: w, optClass: 'greek',
     options: shuffle([opt(w.id, label(w), true, { say: w }), ...distractors(w, 3, { ok: (x) => x.picEx }).map((d) => opt(d.id, label(d), false, { say: d }))]),
   }),
   article: (w) => ({
@@ -179,11 +186,11 @@ const makers = {
   // ===== spelling =====
   // Spelling covers the little word as well: she spells "ο μπαμπάς", not just "μπαμπάς".
   'build-en': (w) => ({
-    kind: 'build', title: 'Write this in Greek', prompt: w.en, promptClass: 'en', sub: 'with its little word', silent: true, say: w,
+    kind: 'build', title: 'Write this in Greek', prompt: w.en, promptClass: 'en', sub: lw(w, 'with its little word'), silent: true, say: w,
     answer: label(w), tiles: tilesFor(label(w)),
   }),
   'build-listen': (w) => ({
-    kind: 'build', title: 'Write what you hear, with its little word', listen: true, say: w,
+    kind: 'build', title: `Write what you hear${lw(w, ', with its little word')}`, listen: true, say: w,
     answer: label(w), tiles: tilesFor(label(w)),
   }),
   // One right answer; one has the wrong little word; the others have a slip in the spelling.
@@ -223,16 +230,16 @@ const makers = {
   // Every written answer is the word WITH its little word: "ο μπαμπάς". A bare "μπαμπάς" is "so close", not right.
   // New words show a pattern: the first letter of the word is given, the little word is for her to supply.
   'write-hint': (w) => ({
-    ...writeBase(w), title: 'Write this in Greek', prompt: w.en, promptClass: 'en', sub: 'with its little word. The first letter of the word is shown', silent: true, scaffold: true,
+    ...writeBase(w), title: 'Write this in Greek', prompt: w.en, promptClass: 'en', sub: w.art ? 'with its little word. The first letter of the word is shown' : 'The first letter is shown', silent: true, scaffold: true,
   }),
   'write-en': (w) => ({
-    ...writeBase(w), title: 'Write this in Greek', prompt: w.en, promptClass: 'en', sub: 'with its little word', silent: true,
+    ...writeBase(w), title: 'Write this in Greek', prompt: w.en, promptClass: 'en', sub: lw(w, 'with its little word'), silent: true,
   }),
   'write-listen': (w) => ({
-    ...writeBase(w), title: 'Write what you hear, with its little word', listen: true,
+    ...writeBase(w), title: `Write what you hear${lw(w, ', with its little word')}`, listen: true,
   }),
   'write-pic': (w) => ({
-    ...writeBase(w), title: 'Write who this is, with its little word', pic: w, silent: true,
+    ...writeBase(w), title: w.num ? 'Write this number in Greek' : 'Write who this is, with its little word', pic: w, silent: true,
   }),
   // Write the missing word of a sentence (the little word is already in the sentence).
   'write-gap': (w) => {
@@ -260,7 +267,7 @@ const makers = {
     options: shuffle([opt(w.id, label(w), true, { pic: w }), ...distractors(w, 3, { ok: (x) => x.picEx }).map((d) => opt(d.id, label(d), false, { pic: d }))]),
   }),
   'say-tr': (w) => ({
-    kind: 'choice', title: 'How do you say it?', sub: 'with its little word', listen: true, say: w, optClass: 'trs', answerText: trFull(w),
+    kind: 'choice', title: 'How do you say it?', sub: lw(w, 'with its little word'), listen: true, say: w, optClass: 'trs', answerText: trFull(w),
     options: shuffle([opt('ok', trFull(w), true), ...trOptions(w).map((t, i) => opt(`x${i}`, t, false))]),
   }),
   stress: (w) => {
@@ -300,7 +307,7 @@ const makers = {
   's-build': (w) => {
     const s = pickSentence(w);
     const toks = s.el.split(' ');
-    const pool = uniq(sample(WORDS.filter((x) => x.id !== w.id && x.art), 8).flatMap((x) => (pickSentence(x, s.t) || { el: '' }).el.split(' ')))
+    const pool = uniq(sample(inTopic(w).filter((x) => x.id !== w.id && hasWord(x)), 8).flatMap((x) => (pickSentence(x, s.t) || { el: '' }).el.split(' ')))
       .filter((t) => t && !toks.includes(t) && !toks.includes(strip(t)));
     const extra = sample(pool, 2);
     return {
@@ -343,16 +350,16 @@ const QUOTAS = {
 
 function eligible(type, w, caps) {
   switch (type) {
-    case 'pic-el': case 'listen-pic': return !!w.picEx && WORDS.filter((x) => x.picEx).length >= 4;
+    case 'pic-el': case 'listen-pic': return !!w.picEx && inTopic(w).filter((x) => x.picEx).length >= 4;
     case 'counterpart': return !!w.pair && !!word(w.pair);
     case 'article': return ['ο', 'η', 'το'].includes(w.art);
     case 'build-en': case 'build-listen': return Array.from(w.el).length <= 14;
     case 'missing-letter': return Array.from(w.el).filter(isLetter).length >= 3;
-    case 'write-hint': case 'write-en': case 'write-listen': return !!w.art && Array.from(w.el).length >= 3 && Array.from(w.el).length <= 14;
+    case 'write-hint': case 'write-en': case 'write-listen': return hasWord(w) && Array.from(w.el).length >= 3 && Array.from(w.el).length <= 14;
     case 'write-pic': return !!w.picEx;
     case 'write-art-gap': return ARTICLES.includes(w.art) && artGapCandidates(w).length > 0;
     case 'write-gap': return sentencesFor(w.id).length > 0;
-    case 'stress': return !!w.art && syllables(w.tr).length >= 2 && stressIndex(w.tr) >= 0;
+    case 'stress': return hasWord(w) && syllables(w.tr).length >= 2 && stressIndex(w.tr) >= 0;
     case 'speak': return !!caps.speak;
     case 's-blank': return sentencesFor(w.id).length > 0 && sameArtPool(w).length >= 3;
     case 's-translate': case 's-listen': case 's-build': return sentencesFor(w.id).length > 0;
@@ -398,23 +405,26 @@ function matchQuestion(words) {
 export function buildLesson(spec, caps = { speak: false }) {
   const N = 10;
   let pool;
-  const seen = WORDS.filter((w) => ws(w.id).seen > 0).sort((a, b) => ws(a.id).s - ws(b.id).s);
+  const topic = spec.topic || (spec.unit && spec.unit.topic) || 'family';
+  const TW = WORDS.filter((w) => topicOf(w) === topic);                  // this section's words
+  const TU = UNITS.filter((u) => (u.topic || 'family') === topic);       // and units
+  const seen = TW.filter((w) => ws(w.id).seen > 0).sort((a, b) => ws(a.id).s - ws(b.id).s);
   if (spec.kind === 'unit') {
     pool = spec.unit.words.map(word);
-    if (pool.length < 5) { // tiny units borrow review words from earlier units
-      const idx = UNITS.indexOf(spec.unit);
-      const earlier = UNITS.slice(0, idx).flatMap((u) => u.words).map(word).filter((w) => ws(w.id).seen > 0).sort((a, b) => ws(a.id).s - ws(b.id).s);
+    if (pool.length < 5) { // tiny units borrow review words from earlier units of the same section
+      const idx = TU.indexOf(spec.unit);
+      const earlier = TU.slice(0, idx).flatMap((u) => u.words).map(word).filter((w) => ws(w.id).seen > 0).sort((a, b) => ws(a.id).s - ws(b.id).s);
       pool = [...pool, ...earlier.slice(0, 5 - pool.length)];
     }
   } else if (spec.kind === 'practice') {
     pool = seen.slice(0, 8);
   } else if (spec.kind === 'skill') {
-    pool = seen.length >= 4 ? seen.slice(0, 10) : uniq([...seen, ...UNITS[0].words.map(word), ...UNITS[1].words.map(word)]).slice(0, 8);
+    pool = seen.length >= 4 ? seen.slice(0, 10) : uniq([...seen, ...TU[0].words.map(word), ...(TU[1] ? TU[1].words.map(word) : [])]).slice(0, 8);
   } else {
-    const weighted = WORDS.flatMap((w) => Array(6 - Math.min(5, ws(w.id).s)).fill(w));
+    const weighted = TW.flatMap((w) => Array(6 - Math.min(5, ws(w.id).s)).fill(w));
     pool = uniq(sample(weighted, 40)).slice(0, 10);
   }
-  if (pool.length < 2) pool = WORDS.slice(0, 5);
+  if (pool.length < 2) pool = TW.slice(0, 5);
 
   const lessonNo = spec.kind === 'unit' ? spec.lessonNo : spec.kind === 'skill' ? 2 : 3;
   const quota = spec.kind === 'skill' ? { [spec.skill]: N } : { ...QUOTAS[lessonNo] };
