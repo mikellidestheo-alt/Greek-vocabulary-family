@@ -115,7 +115,7 @@ function trOptions(w) {
 }
 
 // ---------- sentences ----------
-const pseudo = (s) => ({ id: `s-${s.id}`, el: s.el, art: '', tr: s.tr, en: s.en, say: s.el });
+const pseudo = (s) => ({ id: `s-${s.id}`, el: s.el, art: '', tr: s.tr, en: s.en, say: s.el, key: s.form });
 const pickSentence = (w, preferT) => {
   const list = sentencesFor(w.id);
   if (!list.length) return null;
@@ -380,7 +380,8 @@ function makeFor(skill, w, lessonNo, last, caps) {
   const type = pool[rnd(pool.length)];
   const q = { id: ++uid, type, skill: TYPE_SKILL[type], wid: w.id, ...makers[type](w) };
   // every Say-it task ends with saying the word out loud (the "speak" question already is that)
-  if (q.skill === 'pronunciation' && type !== 'speak' && caps.speak) q.needsSpeak = true;
+  // (and every Sentences task ends with saying the whole sentence out loud)
+  if (((q.skill === 'pronunciation' && type !== 'speak') || q.skill === 'sentences') && caps.speak) q.needsSpeak = true;
   return q;
 }
 

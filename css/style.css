@@ -360,6 +360,11 @@ select, .text { border: .15rem solid var(--line); background: #fbf8ff; border-ra
 /* "now say it" step inside the answer bar */
 .speak-confirm { display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap; padding: .2rem 0 .3rem; }
 .speak-confirm .speak-status { text-align: left; color: inherit; flex: 1 1 12rem; font-size: 1.1rem; }
+.speak-confirm.sentence { flex-direction: column; gap: .35rem; }
+.speak-sentence { text-align: center; width: 100%; }
+.speak-sentence .sel { font-weight: 900; font-size: 1.35rem; line-height: 1.25; color: var(--ink, #3b2a63); }
+.speak-sentence .tr { font-size: .95rem; }
+.speak-confirm.sentence .speak-status { text-align: center; flex: none; font-size: 1rem; }
 .speak-area.compact { margin: 0; gap: .6rem; }
 .speak-area.compact .mic { width: 4.6rem; height: 4.6rem; font-size: 2rem; }
 .speak-area.compact .speak-after .btn { min-width: 9rem; padding: .6rem 1rem; font-size: .95rem; }

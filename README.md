@@ -69,6 +69,15 @@ to write when it is said (it turns "μπαμπάς" into the film star "Μπαν
 nothing else). If Chrome hears nothing at all on two tries, the question switches to record-and-compare so she
 is never stuck.
 
+**Saying sentences.** Every Sentences task (fill the gap, translate, listen, build) also ends with her saying the whole
+Greek sentence out loud. After a right answer the sentence is shown (with how to say it) and Continue stays locked until she
+has said it, like the Say-it tasks. A sentence is judged more kindly than a word, word by word and by sound, in any order, so
+accents, small slips and a missing "μου" don't matter: most of the words must be heard (about 70%), and the key word of
+the task (the number, or the relative) must be one of them, so "δεκαεπτά" can't pass for "δεκαεννέα". It finishes as soon as
+nearly all of it has been heard, a number written as digits ("15") counts, and saying only part of it gets "Nearly! Say the
+whole sentence." After two tries she is let through (it never costs a heart, and a trusted pass needs the key word).
+Turning off Speaking practice in Me → Sound makes Sentences tap-only again.
+
 **Speed.** Chrome only gives its final answer after a second or two of silence, so the app doesn't wait for it:
 every partial guess is checked as it arrives and she passes the moment it is right (usually under a second after
 she finishes), and if the guesses stop changing for a second the app tells Chrome to wrap up. While it listens the

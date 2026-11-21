@@ -286,6 +286,44 @@ export function judgeSpeech(alts, w) {
   return nounHeard ? 'noArticle' : false;
 }
 
+// How much of a spoken SENTENCE was heard, from 0 to 1. Word by word, by sound (so accents, ο/ω, η/ι/υ and small slips
+// don't matter, and a Latin-letter transcript works), in any order, and the best of the guesses counts. A number written
+// as digits ("15") counts for its Greek word: `numMap` maps "15" to "δεκαπέντε".
+export function sentenceScore(alts, el, numMap = {}) {
+  const target = el.split(/\s+/).map(phon).filter(Boolean);
+  if (!target.length) return 0;
+  let best = 0;
+  for (const a of alts) {
+    const toks = a.split(/\s+/).map((t) => phon(numMap[t.trim()] || t)).filter(Boolean);
+    const used = new Set();
+    let hit = 0;
+    for (const t of target) {
+      const tol = t.length <= 3 ? 0 : t.length <= 6 ? 1 : 2;
+      let at = -1, bd = 99;
+      toks.forEach((x, i) => { if (used.has(i)) return; const d = lev(x, t); if (d <= tol && d < bd) { bd = d; at = i; } });
+      if (at >= 0) { used.add(at); hit++; }
+    }
+    // words run together or split apart still sound the same
+    const joined = toks.join(''), want = target.join('');
+    const sim = 1 - lev(joined, want) / Math.max(joined.length, want.length, 1);
+    best = Math.max(best, hit / target.length, sim >= 0.85 ? sim : 0);
+  }
+  return best;
+}
+
+// Was the key word of the sentence (the one the task is about, such as the number) said? Stricter than the rest of the
+// sentence, so "δεκαεπτά" can't pass for "δεκαεννέα".
+export function keyHeard(alts, key, numMap = {}) {
+  const want = phon(key);
+  if (!want) return true;
+  const tol = want.length <= 3 ? 0 : 1;
+  return alts.some((a) => {
+    const toks = a.split(/\s+/).map((t) => phon(numMap[t.trim()] || t)).filter(Boolean);
+    // a word, or two neighbouring words run together ("δεκα πέντε" for δεκαπέντε); never just part of a longer word
+    return toks.some((x, i) => lev(x, want) <= tol || (toks[i + 1] && lev(x + toks[i + 1], want) <= tol));
+  });
+}
+
 // ---------- tiny sound effects (no files needed) ----------
 let ctx = null;
 // Wake the sound system up. Call it from a tap, so a sound can play later (after the microphone has listened).

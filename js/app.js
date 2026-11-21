@@ -5,7 +5,7 @@ import {
 } from './store.js';
 import {
   initAudio, playWord, stopAudio, sfx, greekVoices, ttsSupported, hasRecording, hasFile,
-  canRecord, startRecording, stopRecording, saveRecording, deleteRecording, canListen, listenOnce, judgeSpeech, lev, unlockAudio,
+  canRecord, startRecording, stopRecording, saveRecording, deleteRecording, canListen, listenOnce, judgeSpeech, sentenceScore, keyHeard, lev, unlockAudio,
 } from './audio.js';
 import { buildLesson, introWords, SKILLS } from './lesson.js';
 import { createPad, traceScore, recognize, handwritingMode } from './pad.js';
@@ -779,8 +779,19 @@ function renderQuestion(q) {
 // Shared by the "Say it out loud!" question and by the "now say it" step that follows every other
 // Say-it task. On Android Chrome the browser listens and judges the word. If recognition is not
 // available the child records herself, hears herself next to the real word, and rates herself.
-function speechUI(w, { area, status, onResult, onBlocked }) {
+// "15" -> "δεκαπέντε": the microphone often writes a number as digits
+const NUM_MAP = Object.fromEntries(WORDS.filter((x) => x.num).map((x) => [String(x.num), x.el]));
+
+// `sentence`: she is saying a whole sentence (w is the sentence), which is judged word by word and more kindly
+function speechUI(w, { area, status, onResult, onBlocked, sentence = false }) {
   let tries = 0, finished = false, nounHeard = false, emptyTries = 0;
+  const what = sentence ? 'sentence' : 'word';
+  const score = (alts) => sentenceScore(alts, w.el, NUM_MAP);
+  // a sentence needs most of its words AND its key word (the one the task is about, such as the number)
+  const keyOk = (alts) => !w.key || keyHeard(alts, w.key, NUM_MAP);
+  const judge = sentence ? (alts) => { const sc = score(alts); return sc < 0.45 ? false : !keyOk(alts) ? 'partial' : sc >= 0.7 ? true : 'near'; } : (alts) => judgeSpeech(alts, w);
+  // it finishes as soon as what it hears is right; for a sentence, once nearly all of it has been said
+  const early = sentence ? (alts) => score(alts) >= 0.9 && keyOk(alts) : (alts) => judgeSpeech(alts, w) === true;
   const finish = (ok, info = {}) => {
     if (finished) return;
     finished = true;
@@ -798,10 +809,10 @@ function speechUI(w, { area, status, onResult, onBlocked }) {
 
   // A: the browser listens and judges
   const listenMode = () => {
-    const mic = h('button', { class: 'mic', type: 'button', 'aria-label': 'Tap and say the word' }, '🎤');
+    const mic = h('button', { class: 'mic', type: 'button', 'aria-label': `Tap and say the ${what}` }, '🎤');
     area.replaceChildren(mic);
     let handle = null; // set while the microphone is listening
-    const idle = () => { handle = null; mic.classList.remove('live'); mic.textContent = '🎤'; mic.setAttribute('aria-label', 'Tap and say the word'); };
+    const idle = () => { handle = null; mic.classList.remove('live'); mic.textContent = '🎤'; mic.setAttribute('aria-label', `Tap and say the ${what}`); };
     mic.onclick = async () => {
       // a second tap while listening means "I'm done": stop and judge what was heard so far
       if (handle) { status.textContent = 'Checking…'; handle.stop(); return; }
@@ -810,23 +821,25 @@ function speechUI(w, { area, status, onResult, onBlocked }) {
       mic.classList.add('live'); mic.textContent = '■'; mic.setAttribute('aria-label', 'Stop listening');
       status.textContent = 'Listening… say it now! Tap ■ when you’re done.';
       // it finishes by itself as soon as what it hears is right, so it doesn't wait for Chrome to be sure she stopped
-      handle = listenOnce({ accept: (guesses) => judgeSpeech(guesses, w) === true });
+      handle = listenOnce({ ...(sentence ? { ms: 16000, settleMs: 1800 } : {}), accept: early });
       try {
         const alts = await handle;
         idle();
         const heard = alts[0] ? `I heard “${alts[0]}”. ` : '';
-        const verdict = judgeSpeech(alts, w);
+        const verdict = judge(alts);
         if (verdict === true) { finish(true, { msg: `You said it! 🎉 ${heard}`.trim() }); return; }
         tries++;
-        if (verdict === 'noArticle') nounHeard = true;
+        if (verdict === 'noArticle' || verdict === 'near') nounHeard = true;
         if (!alts.length) emptyTries++; // Chrome returned nothing at all
         // The microphone often can't catch a tiny word like "ο". Once it has heard the word itself on a second go,
         // trust her rather than leave her stuck.
         if (tries >= 2 && nounHeard) {
-          finish(true, { lenient: true, msg: `Well done! ${heard}The little word is hard for me to catch, so I trust you! 🎉` });
+          finish(true, { lenient: true, msg: sentence ? `Well done! ${heard}I caught most of it, so I trust you! 🎉` : `Well done! ${heard}The little word is hard for me to catch, so I trust you! 🎉` });
           return;
         }
-        status.textContent = verdict === 'noArticle'
+        status.textContent = verdict === 'near' || verdict === 'partial'
+          ? `${heard}Nearly! Say the whole sentence.`
+          : verdict === 'noArticle'
           ? `${heard}Nearly! Say the little word too: “${label(w)}”.`
           : verdict === 'wrongArticle'
             ? `${heard}Nearly! Check the little word: “${label(w)}”.`
@@ -859,12 +872,12 @@ function speechUI(w, { area, status, onResult, onBlocked }) {
     const after = h('div', { class: 'speak-after', hidden: true },
       h('div', { class: 'row center wrap' },
         h('button', { class: 'mini big', type: 'button', onclick: () => playMine() }, '▶ Hear me'),
-        h('button', { class: 'mini big', type: 'button', onclick: () => playWord(w) }, '🔊 Hear the word')),
+        h('button', { class: 'mini big', type: 'button', onclick: () => playWord(w) }, sentence ? '🔊 Hear it' : '🔊 Hear the word')),
       h('div', { class: 'row center wrap' },
         h('button', { class: 'btn', type: 'button', onclick: () => finish(true) }, '😄 I said it well!'),
         h('button', { class: 'btn ghost', type: 'button', onclick: () => finish(false) }, '🔁 More practice')));
     area.replaceChildren(mic, after);
-    status.textContent = `${preface}Tap the microphone, say the word, then tap again to stop.`;
+    status.textContent = `${preface}Tap the microphone, say the ${what}, then tap again to stop.`;
     mic.onclick = async () => {
       try {
         if (!recording) {
@@ -918,12 +931,18 @@ function addSpeechConfirm(q, foot) {
   const go = foot.querySelector('.btn');
   if (!go || !w) return;
   go.disabled = true;
-  const status = h('div', { class: 'speak-status', 'aria-live': 'polite' }, `Now say “${label(w)}” out loud!`);
+  // a Sentences task: she says the whole Greek sentence (shown here, if the feedback above hasn't shown it already)
+  const sentence = q.skill === 'sentences';
+  const status = h('div', { class: 'speak-status', 'aria-live': 'polite' }, sentence ? 'Now say the whole sentence out loud!' : `Now say “${label(w)}” out loud!`);
   const area = h('div', { class: 'speak-area compact' });
-  foot.prepend(h('div', { class: 'speak-confirm' }, area, status));
+  foot.prepend(h('div', { class: `speak-confirm ${sentence ? 'sentence' : ''}`, 'data-key': DEBUG && sentence ? w.key : null },
+    sentence && !((lessonEl.querySelector('.fbw') || {}).textContent || '').includes(w.el) ? h('div', { class: 'speak-sentence' },
+      h('div', { class: 'sel' }, w.el),
+      state.settings.translit ? h('div', { class: 'tr' }, w.tr) : null) : null,
+    area, status));
   const unlock = (msg) => { status.textContent = msg; go.disabled = false; go.focus({ preventScroll: true }); };
   speechUI(w, {
-    area, status,
+    area, status, sentence,
     onResult: (ok, info = {}) => {
       if (ok) { L.xp += 5; unlock(info.msg || 'You said it! 🎉'); } else unlock('Nice try! You’ll get another go at this one.');
     },
