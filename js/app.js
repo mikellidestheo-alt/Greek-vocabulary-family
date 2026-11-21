@@ -108,7 +108,7 @@ let micBlocked = false, srBroken = false;
 
 function viewLearn() {
   const root = h('div', { class: 'page learn' });
-  // the app has sections (Family, Numbers 10-20): each has its own lessons, practice and final mix
+  // the app has sections (Family, Numbers 1-20): each has its own lessons, practice and final mix
   const topic = TOPICS.find((t) => t.id === state.settings.topic) || TOPICS[0];
   const units = UNITS.filter((u) => u.topic === topic.id);
   const mixKey = topic.id === 'family' ? 'mixAcc' : `mixAcc_${topic.id}`;

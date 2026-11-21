@@ -11,7 +11,7 @@ Plain HTML, CSS and JavaScript. There is nothing to install and no build step.
 
 ## What's in it
 
-- **6 family units, 25 words** (plus the Numbers 10–20 section below): Mum & Dad, Brothers & Sisters, Grandparents, Aunts & Uncles,
+- **6 family units, 25 words** (plus the Numbers 1–20 section below): Mum & Dad, Brothers & Sisters, Grandparents, Aunts & Uncles,
   Cousins, and the **προ-** ("great-") prefix. It has male and female forms
   (θείος/θεία, ξάδερφος/ξαδέρφη) and a few plurals (γονείς, ξαδέρφια).
   Only grandparents get **προ-** (προπάππους, προγιαγιά). Great-uncles and great-aunts are just θείος/θεία.
@@ -25,18 +25,21 @@ Plain HTML, CSS and JavaScript. There is nothing to install and no build step.
   because there the monsters are the question.
 - **3 lessons per unit**, getting harder as she learns, then a final "whole family mix".
 
-### A second section: Numbers 10–20
+### A second section: Numbers 1–20
 
-The Learn page has two sections, **👨‍👩‍👧 Family** and **🔢 Numbers 10–20**, with a switch at the top. Numbers have nothing to do
+The Learn page has two sections, **👨‍👩‍👧 Family** and **🔢 Numbers 1–20**, with a switch at the top. Numbers have nothing to do
 with family, so the section has its own lessons, its own "Four ways to practise" and tricky-words practice, and its own
-final **Number mix**; wrong answers and sentences never come from the other section. It has two units, **10 to 15** and
-**16 to 20**, with 3 lessons each: δέκα, έντεκα, δώδεκα, δεκατρία, δεκατέσσερα, δεκαπέντε, δεκαέξι, δεκαεπτά, δεκαοκτώ, δεκαεννέα, είκοσι.
-The same plush monsters hold up each number on a yellow badge, and all four skills work as they do for family words:
+final **Number mix**; wrong answers and sentences never come from the other section. It has four units with 3 lessons
+each: **1 to 5**, **6 to 9**, **10 to 15** and **16 to 20**
+(ένα, δύο, τρία, τέσσερα, πέντε, έξι, επτά, οκτώ, εννέα, δέκα, έντεκα, δώδεκα, δεκατρία, δεκατέσσερα, δεκαπέντε, δεκαέξι, δεκαεπτά,
+δεκαοκτώ, δεκαεννέα, είκοσι).
+The plush monsters hold up each number on a yellow badge, and all four skills work as they do for family words:
 translate (including "Which number is this?" picture questions), spell (type or write the number), say it, and
 sentences ("Έχω δεκαπέντε μήλα.", "Είμαι έντεκα χρονών."). Numbers have no little word, so nothing asks for ο / η / το.
-Everyday spellings are accepted (δεκαεφτά, δεκαοχτώ, δεκαεννιά, ένδεκα). Speaking is stricter than for family words, so
-17 and 19 can't be mixed up and "δεκα" inside a bigger number doesn't pass as ten, and a transcript written as digits
-("15") counts.
+They are the counting forms (ένα, τρία, τέσσερα...), and "one" gets singular sentences (ένα μήλο).
+Everyday spellings are accepted (δυο, εφτά, οχτώ, εννιά, δεκαεφτά, δεκαοχτώ, δεκαεννιά, ένδεκα). Speaking is stricter than
+for family words, so 17 and 19 can't be mixed up and "δεκα" inside a bigger number doesn't pass as ten, and a transcript
+written as digits ("15") counts.
 
 ### Four skills, in every lesson
 

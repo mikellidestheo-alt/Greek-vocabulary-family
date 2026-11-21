@@ -353,6 +353,7 @@ function eligible(type, w, caps) {
     case 'pic-el': case 'listen-pic': return !!w.picEx && inTopic(w).filter((x) => x.picEx).length >= 4;
     case 'counterpart': return !!w.pair && !!word(w.pair);
     case 'article': return ['ο', 'η', 'το'].includes(w.art);
+    case 'spell-pick': return misspellings(w.el).length >= 3;
     case 'build-en': case 'build-listen': return Array.from(w.el).length <= 14;
     case 'missing-letter': return Array.from(w.el).filter(isLetter).length >= 3;
     case 'write-hint': case 'write-en': case 'write-listen': return hasWord(w) && Array.from(w.el).length >= 3 && Array.from(w.el).length <= 14;
