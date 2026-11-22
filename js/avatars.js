@@ -2,6 +2,7 @@
 // Googly mismatched eyes, crooked teeth, tongues, fuzzy / tie-dye / two-tone fur.
 //
 // A "pic" is either one monster recipe, or { figs: [recipe, recipe], badge: 'προ-' }.
+// The badge is a short text, a number, or an emoji (the Agora sections: a monster holding up a 🍞).
 //   shape  blob | cat | bunny | horn | tall | round
 //   fur    fuzzy | plush | tie | split
 //   c, c2, c3   body colours (c2/c3 used by tie-dye and split fur)
@@ -274,12 +275,15 @@ export function avatarSVG(pic, { bg = '#e9defa', mood = 'happy' } = {}) {
   const body = figs.length === 1
     ? place(figs[0], 0, 4, 1, opts)
     : place(figs[0], -5, 24, 0.62, opts) + place(figs[1], 43, 24, 0.62, { ...opts, seed: 7 });
-  // a number badge is bigger: the monster is holding the number up
+  // a number or emoji badge is bigger: the monster is holding it up (an emoji sits on a white disc, a number on a yellow one)
   const digits = /^\d+$/.test(badge || '');
+  const emoji = !digits && /\p{Extended_Pictographic}/u.test(badge || '');
   const badgeSvg = badge
     ? (digits
       ? `<g transform="rotate(-8 72 27)"><circle cx="72" cy="27" r="21" fill="#ffd23f" stroke="#3a2150" stroke-width="2.6"/><text x="72" y="35" text-anchor="middle" font-size="${badge.length > 1 ? 23 : 27}" font-weight="900" fill="#3a2150" font-family="system-ui,sans-serif">${badge}</text></g>`
-      : `<g transform="rotate(-8 74 24)"><circle cx="74" cy="24" r="15" fill="#ffd23f" stroke="#3a2150" stroke-width="2.2"/><text x="74" y="29.5" text-anchor="middle" font-size="14.5" font-weight="900" fill="#3a2150" font-family="system-ui,sans-serif">${badge}</text></g>`)
+      : emoji
+        ? `<g transform="rotate(-8 72 27)"><circle cx="72" cy="27" r="22" fill="#ffffff" stroke="#3a2150" stroke-width="2.6"/><text x="72" y="35" text-anchor="middle" font-size="22" font-family="'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif">${badge}</text></g>`
+        : `<g transform="rotate(-8 74 24)"><circle cx="74" cy="24" r="15" fill="#ffd23f" stroke="#3a2150" stroke-width="2.2"/><text x="74" y="29.5" text-anchor="middle" font-size="14.5" font-weight="900" fill="#3a2150" font-family="system-ui,sans-serif">${badge}</text></g>`)
     : '';
   return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">${bg === 'none' ? '' : `<rect width="100" height="100" fill="${bg}"/>`}${body}${badgeSvg}</svg>`;
 }

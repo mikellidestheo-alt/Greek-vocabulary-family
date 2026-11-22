@@ -5,7 +5,7 @@
 //   spelling      write it right: letter tiles, missing letter, correct spelling
 //   pronunciation hear it, stress it, say it out loud
 //   sentences     fill the gap, translate, build a sentence
-import { WORDS, UNITS, word, unitOf, label, sentencesFor, ART_TR, topicOf } from './words.js';
+import { WORDS, UNITS, TOPICS, word, unitOf, label, sentencesFor, ART_TR, topicOf } from './words.js';
 import { ws } from './store.js';
 
 export const SKILLS = [
@@ -35,8 +35,11 @@ let uid = 0;
 // Each section of the app has its own words: wrong answers, sentences and mixes never cross over
 // (a number question never offers "grandpa" as an answer).
 const inTopic = (w) => WORDS.filter((x) => topicOf(x) === topicOf(w));
-// words that can be written / said with the word itself being the whole answer: family words with a little word, and numbers
-const hasWord = (w) => !!w.art || !!w.num;
+// words that can be written / said with the word itself being the whole answer: words with a little word, numbers,
+// and describing words (colours, sizes, directions ...) that have no little word at all
+const hasWord = (w) => !!w.art || !!w.num || !!w.plain;
+// each section words its picture questions its own way ("Who is this?", "Which colour is this?" ...)
+const topicInfo = (w) => TOPICS.find((t) => t.id === topicOf(w)) || TOPICS[0];
 const lw = (w, text) => (w.art ? text : ''); // text about "its little word" only where there is one
 
 // ---------- fair wrong answers ----------
@@ -122,7 +125,7 @@ const pickSentence = (w, preferT) => {
   const same = preferT == null ? [] : list.filter((s) => s.t === preferT);
   return (same.length ? same : list)[rnd((same.length ? same : list).length)];
 };
-const sameArtPool = (w) => inTopic(w).filter((x) => x.id !== w.id && (w.num ? !!x.num : x.art && x.art === w.art) && x.id !== 'pro' && x.en !== w.en && !(w.grp && x.grp === w.grp));
+const sameArtPool = (w) => inTopic(w).filter((x) => x.id !== w.id && (w.num ? !!x.num : w.plain ? !!x.plain : x.art && x.art === w.art) && x.id !== 'pro' && x.en !== w.en && !(w.grp && x.grp === w.grp));
 
 // sentences where the word comes right after its little word: "Αυτός είναι ο θείος μου."
 function artGapCandidates(w) {
@@ -165,7 +168,7 @@ const makers = {
     options: shuffle([opt(w.id, label(w), true, { say: w }), ...distractors(w, 3).map((d) => opt(d.id, label(d), false, { say: d }))]),
   }),
   'pic-el': (w) => ({
-    kind: 'choice', title: w.num ? 'Which number is this?' : 'Who is this?', pic: w, say: w, optClass: 'greek',
+    kind: 'choice', title: topicInfo(w).picQ, pic: w, say: w, optClass: 'greek',
     options: shuffle([opt(w.id, label(w), true, { say: w }), ...distractors(w, 3, { ok: (x) => x.picEx }).map((d) => opt(d.id, label(d), false, { say: d }))]),
   }),
   article: (w) => ({
@@ -239,7 +242,7 @@ const makers = {
     ...writeBase(w), title: `Write what you hear${lw(w, ', with its little word')}`, listen: true,
   }),
   'write-pic': (w) => ({
-    ...writeBase(w), title: w.num ? 'Write this number in Greek' : 'Write who this is, with its little word', pic: w, silent: true,
+    ...writeBase(w), title: topicInfo(w).writeQ + lw(w, ', with its little word'), pic: w, silent: true,
   }),
   // Write the missing word of a sentence (the little word is already in the sentence).
   'write-gap': (w) => {
@@ -360,7 +363,8 @@ function eligible(type, w, caps) {
     case 'write-pic': return !!w.picEx;
     case 'write-art-gap': return ARTICLES.includes(w.art) && artGapCandidates(w).length > 0;
     case 'write-gap': return sentencesFor(w.id).length > 0;
-    case 'stress': return hasWord(w) && syllables(w.tr).length >= 2 && stressIndex(w.tr) >= 0;
+    // the syllables must all look different, or two buttons ("ta", "ta") could not be told apart
+    case 'stress': return hasWord(w) && syllables(w.tr).length >= 2 && stressIndex(w.tr) >= 0 && new Set(syllables(w.tr).map((x) => x.toLowerCase())).size === syllables(w.tr).length;
     case 'speak': return !!caps.speak;
     case 's-blank': return sentencesFor(w.id).length > 0 && sameArtPool(w).length >= 3;
     case 's-translate': case 's-listen': case 's-build': return sentencesFor(w.id).length > 0;

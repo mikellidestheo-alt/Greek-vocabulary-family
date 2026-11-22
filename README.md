@@ -11,7 +11,7 @@ Plain HTML, CSS and JavaScript. There is nothing to install and no build step.
 
 ## What's in it
 
-- **6 family units, 25 words** (plus the Numbers 1–20 section below): Mum & Dad, Brothers & Sisters, Grandparents, Aunts & Uncles,
+- **12 sections** (Family and Numbers, plus ten from the Agora game, described below). **Family: 6 units, 25 words** (plus the Numbers 1–20 section below): Mum & Dad, Brothers & Sisters, Grandparents, Aunts & Uncles,
   Cousins, and the **προ-** ("great-") prefix. It has male and female forms
   (θείος/θεία, ξάδερφος/ξαδέρφη) and a few plurals (γονείς, ξαδέρφια).
   Only grandparents get **προ-** (προπάππους, προγιαγιά). Great-uncles and great-aunts are just θείος/θεία.
@@ -41,6 +41,42 @@ Everyday spellings are accepted (δυο, εφτά, οχτώ, εννιά, δεκ�
 for family words, so 17 and 19 can't be mixed up and "δεκα" inside a bigger number doesn't pass as ten, and a transcript
 written as digits ("15") counts.
 
+### Ten more sections, from the Αγορά (Agora) game
+
+The Learn page has twelve sections in all. Ten of them use the vocabulary of the owner's town game
+(Greekopolis, `data/vocab.json`), so a child can practise the same words here first:
+
+| Section | What's in it |
+| --- | --- |
+| 🥐 **Bakery** | bread, pies, drinks, sweet things (22 words) |
+| 🎒 **School** | people (η δασκάλα / ο δάσκαλος …), school things, classroom, questions and answers (31) |
+| 👕 **Clothes & shops** | tops, trousers, shoes, hats, the shop and money (27) |
+| 🎨 **Colours & describing** | 11 colours (the monster *is* that colour), sizes, prices, new, old, tasty (24) |
+| 🐶 **Pets** | the pet shop, cats and dogs, little pets (the `-άκι` diminutives), farm animals (23) |
+| 🚌 **Town & transport** | bus, vehicles, streets, directions (19) |
+| 🍽️ **Food & taverna** | fruit, vegetables, dishes, the table, ordering (34) |
+| 🌳 **Park & weather** | playground, friends, sun and rain, hot and cold (20) |
+| 🏠 **Home** | rooms, furniture, doors and windows (15) |
+| 📅 **Days & time** | Monday to Sunday, day, hour, today, tomorrow, now (12) |
+
+They work like the first two sections (3 lessons per unit, all four skills, a final mix), with a few differences:
+
+- **Pictures:** every word is still a plush monster, now holding up an emoji badge (🍞, 🐱, 🚌). Colour words
+  are monsters in that colour. Picture questions only use words whose emoji is unmistakable (marked `picEx`);
+  the section's own wording is set by `picQ` / `writeQ` ("What is this?", "Which colour is this?").
+- **Describing words** (colours, sizes, directions, today / tomorrow …) have no little word. They are `plain: true`,
+  are written and said without ο / η / το, and use the neuter form that goes with *το* words (*Το φόρεμα είναι κόκκινο*).
+- **Sentences:** nouns get "This is the …", "Where is the …?" and "I like the …" / "The … is here." (never "my …").
+  Words where that would sound odd (days, weather, colours, directions, a few school words) have hand-written
+  sentences in `TOWN_SENTENCES`.
+- **Audio:** the new words use the device's Greek voice like every other word. The game's pre-generated voice
+  files were *not* copied in: this app loads every file in `audio/` at start-up, so 227 extra files would slow it down.
+- **Where it lives:** all of it is in `js/words-town.js` (plain data, same fields as `words.js`, with notes at the top).
+  Add or change a word there; `node scripts/validate-words.mjs` checks it.
+
+> **The Greek in these ten sections has not been checked by a native speaker yet.** It comes from the game's word
+> list (also unchecked), and the sentences are new. Please review before relying on it in class.
+
 ### Four skills, in every lesson
 
 Every lesson mixes all four, and each can be practised on its own from the Learn page.
@@ -53,7 +89,7 @@ Progress for each skill is shown on the **Me** page.
 | 🗣️ **Say it** | hear it and tap the monster, pick the right pronunciation (with the little word: "o ba-BAS", with a wrong-little-word option such as "ee ba-BAS"), which syllable is loudest, **say it out loud**. Every Say-it task ends with her saying the word **with its little word**, and Continue stays locked until she has |
 | 💬 **Sentences** | fill the missing word, translate a sentence, listen and understand, build a Greek sentence from word tiles |
 
-There are 85 sentences. Every word gets "This is my…", "Where is my…?" and "My … is here."
+There are 85 family sentences. Every word gets "This is my…", "Where is my…?" and "My … is here."
 with the right Greek gender (Αυτός / Αυτή / Αυτό …), plus some hand-written action sentences.
 
 **Speaking** is part of every Say-it task. After a correct answer she must say the word out loud

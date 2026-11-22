@@ -1,9 +1,9 @@
 // Service worker: lets the app open offline once it has been loaded once.
 // Strategy: network first (so updates show up straight away), cache as fallback.
-const CACHE = 'gvf-v21';
+const CACHE = 'gvf-v22';
 const SHELL = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest',
-  'js/app.js', 'js/words.js', 'js/avatars.js', 'js/audio.js', 'js/lesson.js', 'js/store.js', 'js/pad.js',
+  'js/app.js', 'js/words.js', 'js/words-town.js', 'js/avatars.js', 'js/audio.js', 'js/lesson.js', 'js/store.js', 'js/pad.js',
   'icons/icon.svg', 'icons/icon-192.png',
 ];
 

@@ -27,7 +27,11 @@
 //
 //  Sentences are made automatically for every word (see sentencesFor) and
 //  you can add hand-written ones in HAND_SENTENCES below.
+//
+//  The ten sections taken from the Agora game (Bakery, School, Clothes & shops, Colours, Pets, Town,
+//  Food, Park & weather, Home, Days & time) live in words-town.js, which has its own notes.
 // =====================================================================
+import { TOWN_TOPICS, TOWN_WORDS, TOWN_UNITS, TOWN_SENTENCES } from './words-town.js';
 
 // ---- monster recipes ------------------------------------------------
 const MUM = { shape: 'cat', fur: 'fuzzy', c: '#ef6fae', ec: '#7ed321', mouth: 'tongue', teeth: 'crooked', acc: ['bow', 'lashes'] };
@@ -180,12 +184,19 @@ export const UNITS = [
     note: 'The same pattern: δεκα + έξι = δεκαέξι. Numbers have no little word (no ο, η or το). είκοσι (20) is a brand-new word.' },
 ];
 UNITS.forEach((u) => { u.topic ||= 'family'; });
+// the sections from the Agora game come after Family and Numbers, in the order of TOWN_TOPICS
+WORDS.push(...TOWN_WORDS);
+UNITS.push(...TOWN_UNITS);
 
 // The app has sections. Each one has its own lessons, practice and final mix.
 export const TOPICS = [
-  { id: 'family', title: 'Family', icon: '👨‍👩‍👧', mix: ['Whole family mix', 'Every word, tricky ones first'], hello: 'Floufi and the family monsters are ready to learn Greek!' },
-  { id: 'numbers', title: 'Numbers 1–20', icon: '🔢', mix: ['Number mix', 'Every number, tricky ones first'], hello: 'Floufi and the monsters are ready to count in Greek!' },
+  { id: 'family', short: 'Family', title: 'Family', icon: '👨‍👩‍👧', mix: ['Whole family mix', 'Every word, tricky ones first'], hello: 'Floufi and the family monsters are ready to learn Greek!' },
+  { id: 'numbers', short: 'Numbers', title: 'Numbers 1–20', icon: '🔢', mix: ['Number mix', 'Every number, tricky ones first'], hello: 'Floufi and the monsters are ready to count in Greek!', picQ: 'Which number is this?', writeQ: 'Write this number in Greek' },
+  ...TOWN_TOPICS,
 ];
+// Family keeps its own picture questions ("Who is this?")
+TOPICS[0].picQ = 'Who is this?';
+TOPICS[0].writeQ = 'Write who this is';
 export const topicOf = (w) => (w && w.topic) || 'family';
 
 export const LESSONS_PER_UNIT = 3;
@@ -233,6 +244,7 @@ const HAND_SENTENCES = [
 const DEM = {
   ο: { el: 'Αυτός', tr: 'af-TOS' }, η: { el: 'Αυτή', tr: 'af-TEE' }, το: { el: 'Αυτό', tr: 'af-TO' },
   οι: { el: 'Αυτοί', tr: 'af-TEE' }, τα: { el: 'Αυτά', tr: 'af-TA' },
+  οιf: { el: 'Αυτές', tr: 'af-TES' }, // feminine plural: οι πατάτες, οι κάλτσες
 };
 export const ART_TR = { ο: 'o', η: 'ee', το: 'to', οι: 'ee', τα: 'ta' };
 
@@ -242,7 +254,9 @@ export function sentencesFor(wid) {
   const w = byId.get(wid);
   if (!w) return [];
   if (w.num) return numberSentences(w);
+  if (TOWN_SENTENCES[wid]) return handSentences(w);
   if (!w.art) return [];
+  if (topicOf(w) !== 'family' && w.tpl !== 'mine') return townSentences(w);
   const form = w.poss || w.el;
   const d = DEM[w.art], a = ART_TR[w.art];
   const A = w.art.charAt(0).toUpperCase() + w.art.slice(1);
@@ -270,4 +284,27 @@ function numberSentences(w) {
   const hand = HAND_SENTENCES.filter((h) => h.blank === w.id)
     .map((h, i) => ({ ...h, t: 3 + i, id: `${w.id}-h${i}`, form: h.form || form }));
   return [...gen, ...hand];
+}
+
+// Words from the Agora sections with hand-written sentences (describing words, days, weather ...).
+// The first one is shown in the word list, the rest are the extra ones; the word is always its own word in the sentence.
+function handSentences(w) {
+  return TOWN_SENTENCES[w.id].map((s, i) => ({ ...s, t: i === 0 ? 0 : 2 + i, id: `${w.id}-${i}`, blank: w.id, form: w.el }));
+}
+
+// Nouns of the Agora sections get three template sentences: "This is the …", "Where is the …?" and
+// either "I like the …" (tpl 'like') or "The … is here." (tpl 'here'). Nothing is "my …", so no μου.
+function townSentences(w) {
+  const d = DEM[w.art === 'οι' && w.fem ? 'οιf' : w.art], a = ART_TR[w.art];
+  const A = w.art.charAt(0).toUpperCase() + w.art.slice(1);
+  const pl = !!w.plural;
+  const en = w.sen || w.en;
+  const third = w.tpl === 'here'
+    ? { el: `${A} ${w.el} είναι εδώ.`, tr: `${a} ${w.tr} EE-ne e-THO.`, en: `The ${en} ${pl ? 'are' : 'is'} here.` }
+    : { el: `Μου αρέσ${pl ? 'ουν' : 'ει'} ${w.art} ${w.el}.`, tr: `moo a-RE-s${pl ? 'oon' : 'i'} ${a} ${w.tr}.`, en: `I like the ${en}.` };
+  return [
+    { el: `${d.el} είναι ${w.art} ${w.el}.`, tr: `${d.tr} EE-ne ${a} ${w.tr}.`, en: pl ? `These are the ${en}.` : `This is the ${en}.` },
+    { el: `Πού είναι ${w.art} ${w.el};`, tr: `poo EE-ne ${a} ${w.tr}?`, en: pl ? `Where are the ${en}?` : `Where is the ${en}?` },
+    third,
+  ].map((s, t) => ({ ...s, t, id: `${w.id}-${t}`, blank: w.id, form: w.el }));
 }

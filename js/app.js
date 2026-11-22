@@ -129,7 +129,7 @@ function viewLearn() {
     h('button', {
       type: 'button', role: 'tab', 'aria-selected': t.id === topic.id ? 'true' : 'false', 'data-topic': t.id, class: `topic-tab ${t.id === topic.id ? 'on' : ''}`,
       onclick: () => { if (t.id === topic.id) return; state.settings.topic = t.id; save(); route(); },
-    }, h('span', { class: 'ti' }, t.icon), t.title))));
+    }, h('span', { class: 'ti' }, t.icon), t.short || t.title))));
 
   // the four skills, each practised in every lesson and also on its own
   root.append(h('section', { class: 'skills wide' },
@@ -386,7 +386,7 @@ function welcome() {
   const dlg = h('div', { class: 'overlay' }, h('div', { class: 'dialog' },
     mascot('big'),
     h('h1', {}, 'Καλώς ήρθες!'),
-    h('p', {}, 'Welcome! I’m Floufi, and these are the family monsters. Let’s learn the Greek words for all your relatives, and the numbers too. What’s your name?'),
+    h('p', {}, 'Welcome! I’m Floufi, and these are the plush monsters. Let’s learn the Greek words for your family, the numbers, and lots of things you meet in town: the bakery, school, clothes, pets, food and more. What’s your name?'),
     input,
     h('button', { class: 'btn', type: 'button', onclick: done }, 'Let’s go!')));
   document.body.append(dlg);
